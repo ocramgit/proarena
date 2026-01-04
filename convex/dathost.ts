@@ -1,0 +1,257 @@
+import { v } from "convex/values";
+import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { steamIdToSteamId64 } from "./steamIdUtils";
+
+async function getDatHostAuth() {
+  const username = process.env.DATHOST_USERNAME;
+  const password = process.env.DATHOST_PASSWORD;
+
+  if (!username || !password) {
+    throw new Error("DatHost credentials not configured");
+  }
+
+  return btoa(`${username}:${password}`);
+}
+
+// Convert Steam IDs to Steam64 format for DatHost whitelist
+function ensureSteamId64(steamId: string): string {
+  if (steamId.startsWith("STEAM_0:")) {
+    return steamIdToSteamId64(steamId);
+  }
+  return steamId;
+}
+
+interface DatHostMatchResponse {
+  id: string;
+  ip: string;
+  port: number;
+  connect_string: string;
+  status: string;
+  serverId: string;
+}
+
+export const createDatHostMatch = action({
+  args: {
+    matchId: v.id("matches"),
+    map: v.string(),
+    teamA_steamIds: v.array(v.string()),
+    teamB_steamIds: v.array(v.string()),
+    location: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<DatHostMatchResponse> => {
+    const auth = await getDatHostAuth();
+
+    // Convert all Steam IDs to Steam64 format for whitelist
+    const teamA_steam64 = args.teamA_steamIds.map(ensureSteamId64);
+    const teamB_steam64 = args.teamB_steamIds.map(ensureSteamId64);
+    const allSteamIds = [...teamA_steam64, ...teamB_steam64];
+
+    console.log("🔐 Whitelist Steam64 IDs:", allSteamIds);
+
+    // Create a new pay-as-you-go CS2 server
+    console.log("Creating new pay-as-you-go CS2 server...");
+    
+    let gameServerId = "";
+    try {
+      // Create FormData for multipart/form-data request
+      // Determine slots based on team size (1v1 = 5 slots minimum, 5v5 = 12 slots)
+      const totalPlayers = args.teamA_steamIds.length + args.teamB_steamIds.length;
+      const slots = totalPlayers <= 2 ? "5" : "12";
+      const serverLocation = args.location || "stockholm";
+      
+      const formData = new URLSearchParams();
+      formData.append("game", "cs2");
+      formData.append("name", `ProArena Match ${Date.now()}`);
+      formData.append("location", serverLocation);
+      formData.append("cs2_settings.slots", slots);
+      formData.append("cs2_settings.rcon", "proarena123");
+      formData.append("autostop", "true");
+      formData.append("autostop_minutes", "30");
+      
+      // WHITELIST ENFORCEMENT: Add Steam64 IDs to whitelist
+      allSteamIds.forEach((steamId, index) => {
+        formData.append(`cs2_settings.steam_game_server_login_token_whitelisted_steam_ids[${index}]`, steamId);
+      });
+      
+      console.log("🔐 Whitelist configured with", allSteamIds.length, "Steam IDs");
+
+      const createServerResponse = await fetch("https://dathost.net/api/0.1/game-servers", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+      });
+
+      if (!createServerResponse.ok) {
+        const errorText = await createServerResponse.text();
+        console.error("Server creation failed:", errorText);
+        throw new Error(`Failed to create server: ${createServerResponse.status} - ${errorText}`);
+      }
+
+      const newServer = await createServerResponse.json();
+      gameServerId = newServer.id;
+      console.log("Created new server:", gameServerId);
+      
+      // Configure server with log address for real-time stats
+      const convexSiteUrl = process.env.CONVEX_SITE_URL || process.env.CONVEX_CLOUD_URL;
+      if (convexSiteUrl) {
+        console.log("Configuring log address...");
+        await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            line: `logaddress_add_http "${convexSiteUrl}/cs2-logs"`,
+          }),
+        });
+      }
+      
+      // Start the server
+      console.log("Starting server...");
+      await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/start`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      });
+      
+      // Wait for server to start
+      await new Promise(resolve => setTimeout(resolve, 8000));
+      
+      // Set INFINITE warmup time (9999 seconds) - game won't start until we say so
+      console.log("⏰ Setting infinite warmup time (mp_warmuptime 9999)...");
+      await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          line: "mp_warmuptime 9999",
+        }),
+      });
+      
+      console.log("✅ Server configured with infinite warmup - awaiting all players");
+    } catch (error: any) {
+      throw new Error(`Failed to create game server: ${error.message}`);
+    }
+
+    const body = {
+      game_server_id: gameServerId,
+      players: [
+        ...teamA_steam64.map((steamId) => ({
+          steam_id_64: steamId,
+          team: "team1",
+        })),
+        ...teamB_steam64.map((steamId) => ({
+          steam_id_64: steamId,
+          team: "team2",
+        })),
+      ],
+      team1: {
+        name: "Team A",
+      },
+      team2: {
+        name: "Team B",
+      },
+      settings: {
+        map: args.map,
+        connect_time: 300,
+        match_begin_countdown: 30,
+        enable_plugin: true,
+        enable_tech_pause: true,
+      },
+    };
+
+    try {
+      const response = await fetch("https://dathost.net/api/0.1/cs2-matches", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `DatHost API error: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      console.log("DatHost match created:", data);
+
+      // Get server info to get the IP
+      const serverResponse = await fetch(
+        `https://dathost.net/api/0.1/game-servers/${gameServerId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${auth}`,
+          },
+        }
+      );
+
+      let serverIp = "pending";
+      let serverPort = 27015;
+      
+      if (serverResponse.ok) {
+        const serverData = await serverResponse.json();
+        serverIp = serverData.ip || serverData.raw_ip || "pending";
+        serverPort = serverData.ports?.game || 27015;
+        console.log("Server details:", { ip: serverIp, port: serverPort });
+      }
+
+      return {
+        id: data.id,
+        ip: serverIp,
+        port: serverPort,
+        connect_string: `${serverIp}:${serverPort}`,
+        status: data.status || "pending",
+        serverId: gameServerId,
+      };
+    } catch (error: any) {
+      console.error("DatHost API Error:", error);
+      throw new Error(`Failed to create DatHost match: ${error.message}`);
+    }
+  },
+});
+
+export const getDatHostMatchStatus = action({
+  args: {
+    matchId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const auth = await getDatHostAuth();
+
+    try {
+      const response = await fetch(
+        `https://dathost.net/api/0.1/cs2-matches/${args.matchId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${auth}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`DatHost API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error("DatHost API Error:", error);
+      throw new Error(`Failed to get DatHost match status: ${error.message}`);
+    }
+  },
+});
