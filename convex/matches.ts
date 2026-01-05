@@ -70,15 +70,16 @@ export const getMatchById = query({
         const isFake = user.clerkId.startsWith("fake_");
         
         // Use steamName if available, otherwise use clerkId
-        const displayName = user.steamName || user.clerkId.substring(0, 10);
+        let displayName = user.steamName || user.clerkId.substring(0, 10);
+        
+        // Handle bots
+        if (isFake) {
+          displayName = user.clerkId.replace("fake_", "Bot ").substring(0, 15);
+        }
         
         return {
           ...user,
-          displayName: isCurrentUser 
-            ? displayName + " (TU)" 
-            : isFake 
-            ? user.clerkId.replace("fake_", "Bot ").substring(0, 15)
-            : displayName,
+          displayName,
           isCurrentUser,
         };
       })
@@ -93,15 +94,16 @@ export const getMatchById = query({
         const isFake = user.clerkId.startsWith("fake_");
         
         // Use steamName if available, otherwise use clerkId
-        const displayName = user.steamName || user.clerkId.substring(0, 10);
+        let displayName = user.steamName || user.clerkId.substring(0, 10);
+        
+        // Handle bots
+        if (isFake) {
+          displayName = user.clerkId.replace("fake_", "Bot ").substring(0, 15);
+        }
         
         return {
           ...user,
-          displayName: isCurrentUser 
-            ? displayName + " (TU)" 
-            : isFake 
-            ? user.clerkId.replace("fake_", "Bot ").substring(0, 15)
-            : displayName,
+          displayName,
           isCurrentUser,
         };
       })
