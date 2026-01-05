@@ -34,6 +34,17 @@ export const checkLobbyReady = internalMutation({
     if (connectedPlayers.length === expectedPlayers) {
       console.log("✅ ALL PLAYERS CONNECTED! Initiating countdown sequence...");
 
+      // PROTECTION: Check if countdown already started (prevent duplicate calls)
+      if (match.countdownStarted) {
+        console.log("⚠️ Countdown already started, skipping duplicate call");
+        return { ready: true, connectedCount: connectedPlayers.length, alreadyStarted: true };
+      }
+
+      // Mark countdown as started to prevent duplicates
+      await ctx.db.patch(args.matchId, {
+        countdownStarted: true,
+      });
+
       // Schedule the countdown sequence
       await ctx.scheduler.runAfter(0, internal.lobbyReady.startCountdown, {
         matchId: args.matchId,

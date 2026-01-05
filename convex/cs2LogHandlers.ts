@@ -89,13 +89,18 @@ export const handlePlayerConnect = internalMutation({
         // ASSIGN TEAM IMMEDIATELY AFTER PLAYER CONNECTS
         if (match.dathostServerId) {
           console.log(`👥 [TEAM ASSIGN] Assigning team for ${args.playerName}...`);
+          console.log(`📋 [TEAM ASSIGN DEBUG] User ID: ${user._id}`);
+          console.log(`📋 [TEAM ASSIGN DEBUG] Team A IDs:`, match.teamA);
+          console.log(`📋 [TEAM ASSIGN DEBUG] Team B IDs:`, match.teamB);
           
           // Check which team the player is on
           const isTeamA = match.teamA.includes(user._id);
           const isTeamB = match.teamB.includes(user._id);
           
+          console.log(`📋 [TEAM ASSIGN DEBUG] isTeamA: ${isTeamA}, isTeamB: ${isTeamB}`);
+          
           if (isTeamA) {
-            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team A (CT)`);
+            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team A (CT) - SteamID: ${normalizedSteamId}`);
             await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
               dathostServerId: match.dathostServerId,
               steamId: normalizedSteamId,
@@ -103,13 +108,16 @@ export const handlePlayerConnect = internalMutation({
               playerName: args.playerName,
             });
           } else if (isTeamB) {
-            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team B (T)`);
+            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team B (T) - SteamID: ${normalizedSteamId}`);
             await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
               dathostServerId: match.dathostServerId,
               steamId: normalizedSteamId,
               team: 2, // T
               playerName: args.playerName,
             });
+          } else {
+            console.error(`❌ [TEAM ASSIGN ERROR] ${args.playerName} is NOT in Team A or Team B!`);
+            console.error(`❌ [TEAM ASSIGN ERROR] This should NEVER happen!`);
           }
         }
         
@@ -439,16 +447,17 @@ export const assignPlayerTeam = internalMutation({
   },
   handler: async (ctx, args) => {
     console.log(`🎯 [TEAM ASSIGN RCON] Sending sm_team command for ${args.playerName}...`);
+    console.log(`📋 [TEAM ASSIGN RCON DEBUG] SteamID: ${args.steamId}, Team: ${args.team === 3 ? 'CT (3)' : 'T (2)'}`);
     
     const auth = Buffer.from(
       `${process.env.DATHOST_EMAIL}:${process.env.DATHOST_PASSWORD}`
     ).toString("base64");
     
     const command = `sm_team "#${args.steamId}" ${args.team}`;
-    console.log(`📤 [TEAM ASSIGN RCON] Command: ${command}`);
+    console.log(`📤 [TEAM ASSIGN RCON] Exact command: ${command}`);
     
     try {
-      await fetch(
+      const response = await fetch(
         `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
         {
           method: "POST",
@@ -460,18 +469,18 @@ export const assignPlayerTeam = internalMutation({
         }
       );
       
-      console.log(`✅ [TEAM ASSIGN RCON] Team assigned for ${args.playerName}`);
+      if (!response.ok) {
+        console.error(`❌ [TEAM ASSIGN RCON] HTTP ${response.status}: ${response.statusText}`);
+      } else {
+        console.log(`✅ [TEAM ASSIGN RCON] Command sent successfully for ${args.playerName}`);
+      }
     } catch (error: any) {
       console.error(`❌ [TEAM ASSIGN RCON] Failed to assign team:`, error.message);
     }
     
-    // Schedule to run the command again after 2 seconds (in case first one didn't work)
-    await ctx.scheduler.runAfter(2000, internal.cs2LogHandlers.assignPlayerTeam, {
-      dathostServerId: args.dathostServerId,
-      steamId: args.steamId,
-      team: args.team,
-      playerName: args.playerName,
-    });
+    // DON'T retry - infinite loop can cause issues
+    // The command should work on first try if SteamID is correct
+    console.log(`ℹ️ [TEAM ASSIGN RCON] Single attempt completed for ${args.playerName}`);
   },
 });
 

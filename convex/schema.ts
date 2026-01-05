@@ -48,6 +48,7 @@ export default defineSchema({
     dathostMatchId: v.optional(v.string()),
     dathostServerId: v.optional(v.string()),
     provisioningStarted: v.optional(v.boolean()),
+    countdownStarted: v.optional(v.boolean()),
     winnerId: v.optional(v.id("users")),
     mvpId: v.optional(v.id("users")),
     scoreTeamA: v.optional(v.float64()),

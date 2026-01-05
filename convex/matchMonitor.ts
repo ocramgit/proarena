@@ -47,14 +47,23 @@ export const checkMatchStatus = internalAction({
       state: match.state
     });
     
-    // Check DatHost CS2 match status to see how many players are connected
+    // CRITICAL: Check DatHost API for player connections - THIS IS THE MAIN DETECTION METHOD
     if (match.dathostMatchId) {
-      console.log("🔍 Calling DatHost CS2 Match API...");
-      const result = await ctx.runAction(internal.dathostStatus.checkServerStatus, {
-        dathostMatchId: match.dathostMatchId,
-        matchId: args.matchId,
-      });
-      console.log("📡 DatHost API result:", JSON.stringify(result));
+      console.log("🔍 [CRITICAL] Calling DatHost CS2 Match API for player detection...");
+      try {
+        const result = await ctx.runAction(internal.dathostStatus.checkServerStatus, {
+          dathostMatchId: match.dathostMatchId,
+          matchId: args.matchId,
+        });
+        console.log("📡 [CRITICAL] DatHost API result:", JSON.stringify(result));
+        
+        // If DatHost detected players, the mutation will handle marking them as connected
+        if (result && result.playersOnline !== undefined && result.playersOnline > 0) {
+          console.log(`✅ [CRITICAL] DatHost detected ${result.playersOnline} players online`);
+        }
+      } catch (error: any) {
+        console.error("❌ [CRITICAL] DatHost API call failed:", error.message);
+      }
     } else {
       console.log("⚠️ No dathostMatchId found for match:", args.matchId);
       console.log("❌ CRITICAL: Cannot check DatHost API without match ID!");
