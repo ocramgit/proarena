@@ -32,19 +32,19 @@ export default function MatchResultPageVersus() {
   const scoreB = match.scoreTeamB || 0;
 
   const currentUserId = currentUser._id;
-  const isPlayerA = currentUserId === playerA?._id;
-  const isPlayerB = currentUserId === playerB?._id;
+  const isPlayerA = currentUserId === playerA?.userId;
+  const isPlayerB = currentUserId === playerB?.userId;
 
-  const userWon = (isPlayerA && scoreA > scoreB) || (isPlayerB && scoreB > scoreA);
   const winner = scoreA > scoreB ? "A" : "B";
+  const userWon = (isPlayerA && winner === "A") || (isPlayerB && winner === "B");
 
   // Get player stats
-  const statsA = players.find(p => p.userId === playerA?._id) || { kills: 0, deaths: 0, assists: 0, mvps: 0 };
-  const statsB = players.find(p => p.userId === playerB?._id) || { kills: 0, deaths: 0, assists: 0, mvps: 0 };
+  const statsA = players.find(p => p.userId === playerA?.userId) || { kills: 0, deaths: 0, assists: 0, mvps: 0, eloChange: 0 };
+  const statsB = players.find(p => p.userId === playerB?.userId) || { kills: 0, deaths: 0, assists: 0, mvps: 0, eloChange: 0 };
 
   // Calculate ELO changes
-  const eloChangeA = statsA.eloChange || 0;
-  const eloChangeB = statsB.eloChange || 0;
+  const eloChangeA = (statsA as any).eloChange || 0;
+  const eloChangeB = (statsB as any).eloChange || 0;
 
   return (
     <div className="h-screen w-full overflow-hidden bg-zinc-950 flex">
@@ -87,7 +87,7 @@ export default function MatchResultPageVersus() {
                 {/* Team A Score */}
                 <div className="text-center">
                   <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
-                    {playerA?.displayName || "Jogador A"}
+                    {playerA?.clerkId?.substring(0, 10) || "Jogador A"}
                   </div>
                   <div className={`text-8xl font-black ${winner === "A" ? "text-green-500" : "text-zinc-600"}`}>
                     {scoreA}
@@ -105,7 +105,7 @@ export default function MatchResultPageVersus() {
                 {/* Team B Score */}
                 <div className="text-center">
                   <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
-                    {playerB?.displayName || "Jogador B"}
+                    {playerB?.clerkId?.substring(0, 10) || "Jogador B"}
                   </div>
                   <div className={`text-8xl font-black ${winner === "B" ? "text-green-500" : "text-zinc-600"}`}>
                     {scoreB}
@@ -136,10 +136,10 @@ export default function MatchResultPageVersus() {
                 </div>
                 <div className="text-center">
                   <div className="text-xl font-bold text-zinc-100">
-                    {match.mvpId === playerA?._id ? playerA?.displayName : playerB?.displayName}
+                    {match.mvpId === playerA?.userId ? (playerA?.clerkId?.substring(0, 10) || "Jogador A") : (playerB?.clerkId?.substring(0, 10) || "Jogador B")}
                   </div>
                   <div className="text-sm text-zinc-400 mt-1">
-                    {match.mvpId === playerA?._id ? statsA.mvps : statsB.mvps} MVPs
+                    {match.mvpId === playerA?.userId ? statsA.mvps : statsB.mvps} MVPs
                   </div>
                 </div>
               </div>
@@ -225,20 +225,16 @@ function ResultPlayerPanel({
       {/* Avatar */}
       <div className="mb-6">
         <div className={`w-32 h-32 mx-auto rounded-full border-4 ${won ? 'border-green-500' : 'border-red-500'} bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center overflow-hidden`}>
-          {player.avatarUrl ? (
-            <img src={player.avatarUrl} alt={player.displayName} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-5xl font-black text-zinc-600">
-              {(player.displayName || "?")[0].toUpperCase()}
-            </span>
-          )}
+          <span className="text-5xl font-black text-zinc-600">
+            {(player.clerkId?.substring(0, 1) || "?").toUpperCase()}
+          </span>
         </div>
       </div>
 
       {/* Name */}
       <div className="text-center mb-4">
         <div className="text-xl font-black text-zinc-100 mb-1">
-          {player.displayName || player.clerkId?.substring(0, 10) || "Jogador"}
+          {player.clerkId?.substring(0, 10) || "Jogador"}
         </div>
         {isCurrentUser && (
           <div className="text-xs uppercase tracking-wider text-orange-500 font-bold">TU</div>
@@ -254,7 +250,7 @@ function ResultPlayerPanel({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-black text-orange-500">
-              {player.elo_1v1 || 1000}
+              1000
             </span>
             {eloChange !== 0 && (
               <div className={`flex items-center text-sm font-bold ${eloChange > 0 ? 'text-green-500' : 'text-red-500'}`}>
