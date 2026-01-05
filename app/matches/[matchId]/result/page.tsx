@@ -91,12 +91,12 @@ export default function MatchResultPageVersus() {
                   <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
                     {playerA?.clerkId?.substring(0, 10) || "Jogador A"}
                   </div>
-                  <div className={`text-8xl font-black ${winner === "A" ? "text-green-500" : "text-zinc-600"}`}>
+                  <div className={`text-8xl font-black ${winner === "A" ? "text-green-500 animate-pulse" : "text-zinc-600"}`}>
                     {scoreA}
                   </div>
                   {winner === "A" && (
-                    <div className="mt-4">
-                      <Trophy className="w-12 h-12 text-yellow-500 mx-auto animate-bounce" />
+                    <div className="mt-4 animate-bounce">
+                      <Trophy className="w-16 h-16 text-yellow-500 mx-auto drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
                     </div>
                   )}
                 </div>
@@ -180,6 +180,16 @@ export default function MatchResultPageVersus() {
         />
       </div>
 
+    </div>
+  );
+}
+
+// Stat Row Component
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-zinc-400">{label}</span>
+      <span className="font-bold text-zinc-100">{value}</span>
     </div>
   );
 }

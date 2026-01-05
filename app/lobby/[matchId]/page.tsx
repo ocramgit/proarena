@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Trophy, Copy, Loader2, Swords, X } from "lucide-react";
+import { Trophy, Copy, Loader2, Swords, X, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -51,14 +51,27 @@ export default function LobbyPagePhase12() {
 
   // Auto-provision server when map is selected
   useEffect(() => {
-    if (match?.state === "CONFIGURING" && !match.serverIp && !isProvisioning) {
+    // CRITICAL: Check provisioningStarted flag to prevent duplicate server creation
+    if (
+      match?.state === "CONFIGURING" && 
+      !match.serverIp && 
+      !match.provisioningStarted && 
+      !isProvisioning
+    ) {
+      console.log("🎮 Starting server provisioning...");
       setIsProvisioning(true);
       provisionServer({ matchId })
-        .then(() => toast.success("Servidor provisionado!"))
-        .catch((error) => toast.error("Erro ao provisionar servidor"))
+        .then(() => {
+          console.log("✅ Server provisioned successfully");
+          toast.success("Servidor provisionado!");
+        })
+        .catch((error) => {
+          console.error("❌ Server provisioning failed:", error);
+          toast.error("Erro ao provisionar servidor");
+        })
         .finally(() => setIsProvisioning(false));
     }
-  }, [match?.state, match?.serverIp, matchId, provisionServer, isProvisioning]);
+  }, [match?.state, match?.serverIp, match?.provisioningStarted, matchId, provisionServer, isProvisioning]);
 
   // Auto-ban location for bots
   useEffect(() => {
@@ -441,16 +454,32 @@ function PlayerPanel({
         )}
       </div>
 
-      {/* ELO */}
-      <div className="bg-zinc-800/50 rounded-lg p-4 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-orange-500" />
-            <span className="text-sm text-zinc-400">ELO</span>
+      {/* Stats */}
+      <div className="space-y-3 mb-4">
+        {/* ELO */}
+        <div className="bg-zinc-800/50 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-orange-500" />
+              <span className="text-xs text-zinc-400 uppercase">ELO</span>
+            </div>
+            <span className="text-xl font-black text-orange-500">
+              {player.elo_1v1 || 1000}
+            </span>
           </div>
-          <span className="text-2xl font-black text-orange-500">
-            {player.elo_1v1 || 1000}
-          </span>
+        </div>
+
+        {/* Win Rate */}
+        <div className="bg-zinc-800/50 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-green-500" />
+              <span className="text-xs text-zinc-400 uppercase">Win Rate</span>
+            </div>
+            <span className="text-xl font-black text-green-500">
+              {player.winRate ? `${player.winRate.toFixed(0)}%` : "0%"}
+            </span>
+          </div>
         </div>
       </div>
 
