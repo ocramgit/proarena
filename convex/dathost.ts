@@ -142,8 +142,10 @@ export const createDatHostMatch = action({
         "mp_match_restart_delay 5", // Quick restart
         "mp_autoteambalance 0", // Disable auto team balance
         "mp_limitteams 0", // No team limits
-        ...teamAssignCommands, // Auto-assign teams
+        "mp_restartgame 1", // Restart to apply team settings
       ];
+      
+      console.log(`🎮 [SERVER CONFIG] Sending ${commands.length} base commands...`);
       
       for (const command of commands) {
         await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
@@ -156,7 +158,11 @@ export const createDatHostMatch = action({
         });
       }
       
-      console.log("✅ 1v1 server configured");
+      console.log("✅ [SERVER CONFIG] Base configuration complete");
+      
+      // DON'T send sm_team commands here - they need to be sent AFTER players connect
+      // The commands will be sent when players connect via handlePlayerConnect
+      console.log(`ℹ️ [TEAM ASSIGN] Team assignments will be applied when players connect`);
       
       // Configure log addresses for CS2 events
       if (convexSiteUrl) {

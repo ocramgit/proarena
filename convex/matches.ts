@@ -77,10 +77,37 @@ export const getMatchById = query({
           displayName = user.clerkId.replace("fake_", "Bot ").substring(0, 15);
         }
         
+        // Calculate real stats from FINISHED matches
+        const allMatches = await ctx.db
+          .query("matches")
+          .filter((q) => q.eq(q.field("state"), "FINISHED"))
+          .collect();
+
+        const userMatches = allMatches.filter(
+          (m) => m.teamA.includes(userId) || m.teamB.includes(userId)
+        );
+
+        const wins = userMatches.filter((m) => {
+          const isInTeamA = m.teamA.includes(userId);
+          const isInTeamB = m.teamB.includes(userId);
+          return (isInTeamA && m.winnerId && m.teamA.includes(m.winnerId)) ||
+                 (isInTeamB && m.winnerId && m.teamB.includes(m.winnerId));
+        }).length;
+
+        const totalMatches = userMatches.length;
+        const losses = totalMatches - wins;
+        const winRate = totalMatches > 0 ? (wins / totalMatches) * 100 : 0;
+        
         return {
           ...user,
           displayName,
           isCurrentUser,
+          stats: {
+            totalMatches,
+            wins,
+            losses,
+            winRate,
+          },
         };
       })
     );
@@ -101,10 +128,37 @@ export const getMatchById = query({
           displayName = user.clerkId.replace("fake_", "Bot ").substring(0, 15);
         }
         
+        // Calculate real stats from FINISHED matches
+        const allMatches = await ctx.db
+          .query("matches")
+          .filter((q) => q.eq(q.field("state"), "FINISHED"))
+          .collect();
+
+        const userMatches = allMatches.filter(
+          (m) => m.teamA.includes(userId) || m.teamB.includes(userId)
+        );
+
+        const wins = userMatches.filter((m) => {
+          const isInTeamA = m.teamA.includes(userId);
+          const isInTeamB = m.teamB.includes(userId);
+          return (isInTeamA && m.winnerId && m.teamA.includes(m.winnerId)) ||
+                 (isInTeamB && m.winnerId && m.teamB.includes(m.winnerId));
+        }).length;
+
+        const totalMatches = userMatches.length;
+        const losses = totalMatches - wins;
+        const winRate = totalMatches > 0 ? (wins / totalMatches) * 100 : 0;
+        
         return {
           ...user,
           displayName,
           isCurrentUser,
+          stats: {
+            totalMatches,
+            wins,
+            losses,
+            winRate,
+          },
         };
       })
     );

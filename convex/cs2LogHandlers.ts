@@ -83,10 +83,38 @@ export const handlePlayerConnect = internalMutation({
           });
         }
         
-        console.log("✅ Player connected to match:", args.playerName, match._id);
+        console.log(`✅ [PLAYER CONNECT] ${args.playerName} connected to match ${match._id}`);
+        console.log(`📊 [PLAYER CONNECT] SteamID: ${normalizedSteamId}, User: ${user._id}`);
+        
+        // ASSIGN TEAM IMMEDIATELY AFTER PLAYER CONNECTS
+        if (match.dathostServerId) {
+          console.log(`👥 [TEAM ASSIGN] Assigning team for ${args.playerName}...`);
+          
+          // Check which team the player is on
+          const isTeamA = match.teamA.includes(user._id);
+          const isTeamB = match.teamB.includes(user._id);
+          
+          if (isTeamA) {
+            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team A (CT)`);
+            await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
+              dathostServerId: match.dathostServerId,
+              steamId: normalizedSteamId,
+              team: 3, // CT
+              playerName: args.playerName,
+            });
+          } else if (isTeamB) {
+            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team B (T)`);
+            await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
+              dathostServerId: match.dathostServerId,
+              steamId: normalizedSteamId,
+              team: 2, // T
+              playerName: args.playerName,
+            });
+          }
+        }
         
         // Check if all players are now connected
-        console.log("🔍 Checking if all players connected...");
+        console.log("🔍 [PLAYER CONNECT] Checking if all players connected...");
         const allStats = await ctx.db
           .query("player_stats")
           .withIndex("by_match", (q) => q.eq("matchId", match._id))
@@ -95,9 +123,14 @@ export const handlePlayerConnect = internalMutation({
         const connectedCount = allStats.filter(s => s.connected).length;
         const expectedPlayers = match.mode === "1v1" ? 2 : 10;
         
-        console.log(`Players connected: ${connectedCount}/${expectedPlayers}`);
+        console.log(`👥 [PLAYER CONNECT] Players connected: ${connectedCount}/${expectedPlayers}`);
+        console.log(`📋 [PLAYER CONNECT] All stats:`, allStats.map(s => ({
+          userId: s.userId,
+          connected: s.connected,
+        })));
         
         // Check if lobby is ready to start
+        console.log(`🎯 [PLAYER CONNECT] Triggering lobby ready check...`);
         await ctx.scheduler.runAfter(0, internal.lobbyReady.checkLobbyReady, {
           matchId: match._id,
         });
@@ -392,6 +425,52 @@ export const handleGameStart = internalMutation({
     // Start DatHost polling for live updates
     await ctx.scheduler.runAfter(0, internal.liveMatchPolling.startLiveMatchPolling, {
       matchId: match._id,
+    });
+  },
+});
+
+// Assign player to team via RCON command
+export const assignPlayerTeam = internalMutation({
+  args: {
+    dathostServerId: v.string(),
+    steamId: v.string(),
+    team: v.number(), // 2 = T, 3 = CT
+    playerName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`🎯 [TEAM ASSIGN RCON] Sending sm_team command for ${args.playerName}...`);
+    
+    const auth = Buffer.from(
+      `${process.env.DATHOST_EMAIL}:${process.env.DATHOST_PASSWORD}`
+    ).toString("base64");
+    
+    const command = `sm_team "#${args.steamId}" ${args.team}`;
+    console.log(`📤 [TEAM ASSIGN RCON] Command: ${command}`);
+    
+    try {
+      await fetch(
+        `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ line: command }),
+        }
+      );
+      
+      console.log(`✅ [TEAM ASSIGN RCON] Team assigned for ${args.playerName}`);
+    } catch (error: any) {
+      console.error(`❌ [TEAM ASSIGN RCON] Failed to assign team:`, error.message);
+    }
+    
+    // Schedule to run the command again after 2 seconds (in case first one didn't work)
+    await ctx.scheduler.runAfter(2000, internal.cs2LogHandlers.assignPlayerTeam, {
+      dathostServerId: args.dathostServerId,
+      steamId: args.steamId,
+      team: args.team,
+      playerName: args.playerName,
     });
   },
 });
