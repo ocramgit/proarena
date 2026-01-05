@@ -40,6 +40,7 @@ import type * as matchWarmup from "../matchWarmup.js";
 import type * as matches from "../matches.js";
 import type * as matchmaker from "../matchmaker.js";
 import type * as party from "../party.js";
+import type * as provisionQueue from "../provisionQueue.js";
 import type * as queue from "../queue.js";
 import type * as server from "../server.js";
 import type * as serverCleanup from "../serverCleanup.js";
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   matches: typeof matches;
   matchmaker: typeof matchmaker;
   party: typeof party;
+  provisionQueue: typeof provisionQueue;
   queue: typeof queue;
   server: typeof server;
   serverCleanup: typeof serverCleanup;

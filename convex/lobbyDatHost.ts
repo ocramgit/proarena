@@ -7,41 +7,52 @@ export const provisionDatHostServer = action({
     matchId: v.id("matches"),
   },
   handler: async (ctx, args): Promise<{ success: boolean; serverIp: string; dathostMatchId: string }> => {
+    console.log(`🔵 [PROVISION START] Match ${args.matchId} - Checking conditions...`);
+    
     const match = await ctx.runQuery(api.matches.getMatchById, {
       matchId: args.matchId,
     });
 
     if (!match) {
+      console.error(`❌ [PROVISION FAIL] Match ${args.matchId} not found`);
       throw new Error("Match not found");
     }
 
+    console.log(`🔍 [PROVISION CHECK] Match state: ${match.state}, serverIp: ${match.serverIp}, provisioningStarted: ${match.provisioningStarted}`);
+
     if (match.state !== "CONFIGURING") {
+      console.warn(`⚠️ [PROVISION SKIP] Match ${args.matchId} not in CONFIGURING state (current: ${match.state})`);
       throw new Error("Match is not in CONFIGURING state");
     }
 
     if (!match.selectedMap) {
+      console.error(`❌ [PROVISION FAIL] Match ${args.matchId} has no map selected`);
       throw new Error("No map selected");
     }
 
     // RACE CONDITION LOCK: Prevent duplicate server creation
     if (match.serverIp || match.provisioningStarted) {
-      console.warn("⚠️ Server already provisioning or provisioned!");
+      console.warn(`🚫 [PROVISION BLOCKED] Match ${args.matchId} - Server already provisioning or provisioned! serverIp: ${match.serverIp}, provisioningStarted: ${match.provisioningStarted}`);
       throw new Error("Server already being provisioned");
     }
 
+    console.log(`🔒 [PROVISION LOCK] Setting lock for match ${args.matchId}...`);
+    
     // Immediately set lock flag
     await ctx.runMutation(internal.lobbyDatHost.setProvisioningLock, {
       matchId: args.matchId,
     });
 
+    console.log(`✅ [PROVISION LOCK] Lock set for match ${args.matchId}`);
+
     // Get Steam IDs for all players
     const teamA_steamIds = match.teamAPlayers.map((p: any) => p.steamId);
     const teamB_steamIds = match.teamBPlayers.map((p: any) => p.steamId);
 
-    console.log("Creating DatHost match...");
-    console.log("Map:", match.selectedMap);
-    console.log("Team A Steam IDs:", teamA_steamIds);
-    console.log("Team B Steam IDs:", teamB_steamIds);
+    console.log(`🎮 [PROVISION CREATE] Creating DatHost server for match ${args.matchId}...`);
+    console.log(`📍 Map: ${match.selectedMap}`);
+    console.log(`👥 Team A Steam IDs:`, teamA_steamIds);
+    console.log(`👥 Team B Steam IDs:`, teamB_steamIds);
 
     // PHASE 12: Use selected location from veto
     // Map location names to DatHost API location IDs
@@ -111,9 +122,19 @@ export const setProvisioningLock = internalMutation({
     matchId: v.id("matches"),
   },
   handler: async (ctx, args) => {
+    const match = await ctx.db.get(args.matchId);
+    
+    // Double-check: if already locked, throw error
+    if (match?.provisioningStarted || match?.serverIp) {
+      console.error(`🚫 [LOCK FAIL] Match ${args.matchId} already locked!`);
+      throw new Error("Match already locked");
+    }
+    
     await ctx.db.patch(args.matchId, {
       provisioningStarted: true,
     });
+    
+    console.log(`🔐 [LOCK SUCCESS] Match ${args.matchId} locked`);
   },
 });
 
