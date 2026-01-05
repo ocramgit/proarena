@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { steamId64ToSteamId, steamIdToSteamId64 } from "./steamIdUtils";
+import { normalizeSteamId, steamId64ToSteamId, steamIdToSteamId64 } from "./steamIdUtils";
 
 export const handlePlayerConnect = internalMutation({
   args: {
@@ -9,26 +9,34 @@ export const handlePlayerConnect = internalMutation({
     playerName: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log("🔍 Looking for user with Steam ID:", args.steamId);
+    console.log("🔍 Player connecting - Raw Steam ID:", args.steamId);
     
-    // Try to find user with exact Steam ID first
+    // Normalize the incoming SteamID to SteamID64 format
+    const normalizedSteamId = normalizeSteamId(args.steamId);
+    console.log("🔄 Normalized to SteamID64:", normalizedSteamId);
+    
+    // Try to find user with normalized Steam ID
     let user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("steamId"), args.steamId))
+      .filter((q) => q.eq(q.field("steamId"), normalizedSteamId))
       .first();
     
-    // If not found, try converting between formats
+    // If not found, try original format
     if (!user) {
-      console.log("🔄 Trying alternate Steam ID format...");
+      console.log("🔍 Trying original format:", args.steamId);
+      user = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("steamId"), args.steamId))
+        .first();
+    }
+    
+    // If still not found, try alternate formats
+    if (!user) {
+      console.log("🔄 Trying alternate Steam ID formats...");
       
-      let alternateSteamId: string;
-      if (args.steamId.startsWith("STEAM_0:")) {
-        // Convert to SteamID64
-        alternateSteamId = steamIdToSteamId64(args.steamId);
-      } else {
-        // Convert to STEAM_0:1:X format
-        alternateSteamId = steamId64ToSteamId(args.steamId);
-      }
+      const alternateSteamId = args.steamId.startsWith("STEAM_") 
+        ? steamIdToSteamId64(args.steamId)
+        : steamId64ToSteamId(normalizedSteamId);
       
       console.log("🔍 Trying alternate format:", alternateSteamId);
       
@@ -39,11 +47,11 @@ export const handlePlayerConnect = internalMutation({
     }
     
     if (!user) {
-      console.log("⚠️ User not found for Steam ID:", args.steamId, "or its alternate format");
+      console.log("⚠️ User not found for Steam ID:", args.steamId);
       return;
     }
     
-    console.log("✅ Found user:", user._id);
+    console.log("✅ Found user:", user._id, user.clerkId);
     
     // Find active match for this user
     const matches = await ctx.db
@@ -105,38 +113,37 @@ export const handlePlayerKill = internalMutation({
     killerSteamId: v.string(),
     victimSteamId: v.string(),
     weapon: v.string(),
+    headshot: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    console.log("💀 Kill event:", args.killerSteamId, "killed", args.victimSteamId, "with", args.weapon);
+    console.log("💀 Kill event:", args.killerSteamId, "killed", args.victimSteamId, "with", args.weapon, args.headshot ? "(HS)" : "");
     
-    // Find users - try both Steam ID formats
+    // Normalize Steam IDs
+    const normalizedKillerId = normalizeSteamId(args.killerSteamId);
+    const normalizedVictimId = normalizeSteamId(args.victimSteamId);
+    
+    // Find users with normalized IDs
     let killer = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("steamId"), args.killerSteamId))
+      .filter((q) => q.eq(q.field("steamId"), normalizedKillerId))
       .first();
     
     if (!killer) {
-      const altKillerId = args.killerSteamId.startsWith("STEAM_0:") 
-        ? steamIdToSteamId64(args.killerSteamId)
-        : steamId64ToSteamId(args.killerSteamId);
       killer = await ctx.db
         .query("users")
-        .filter((q) => q.eq(q.field("steamId"), altKillerId))
+        .filter((q) => q.eq(q.field("steamId"), args.killerSteamId))
         .first();
     }
     
     let victim = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("steamId"), args.victimSteamId))
+      .filter((q) => q.eq(q.field("steamId"), normalizedVictimId))
       .first();
     
     if (!victim) {
-      const altVictimId = args.victimSteamId.startsWith("STEAM_0:")
-        ? steamIdToSteamId64(args.victimSteamId)
-        : steamId64ToSteamId(args.victimSteamId);
       victim = await ctx.db
         .query("users")
-        .filter((q) => q.eq(q.field("steamId"), altVictimId))
+        .filter((q) => q.eq(q.field("steamId"), args.victimSteamId))
         .first();
     }
     
@@ -167,10 +174,16 @@ export const handlePlayerKill = internalMutation({
       .first();
     
     if (killerStat) {
+      const newKills = killerStat.kills + 1;
+      const newHeadshots = (killerStat.headshots || 0) + (args.headshot ? 1 : 0);
+      const hsPercentage = newKills > 0 ? (newHeadshots / newKills) * 100 : 0;
+      
       await ctx.db.patch(killerStat._id, {
-        kills: killerStat.kills + 1,
+        kills: newKills,
+        headshots: newHeadshots,
+        headshotPercentage: hsPercentage,
       });
-      console.log(`✅ Updated killer stats: ${killer._id} now has ${killerStat.kills + 1} kills`);
+      console.log(`✅ Updated killer stats: ${killer._id} - ${newKills} kills, ${newHeadshots} HS (${hsPercentage.toFixed(1)}%)`);
     } else {
       console.log("⚠️ Killer stat not found for user:", killer._id);
     }

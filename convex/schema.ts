@@ -5,6 +5,9 @@ export default defineSchema({
   users: defineTable({
     clerkId: v.string(),
     steamId: v.string(),
+    steamName: v.optional(v.string()),
+    steamAvatar: v.optional(v.string()),
+    steamProfileUrl: v.optional(v.string()),
     role: v.union(v.literal("USER"), v.literal("ADMIN")),
     elo_1v1: v.float64(),
     elo_5v5: v.float64(),
@@ -40,6 +43,7 @@ export default defineSchema({
     serverIp: v.optional(v.string()),
     dathostMatchId: v.optional(v.string()),
     dathostServerId: v.optional(v.string()),
+    provisioningStarted: v.optional(v.boolean()),
     winnerId: v.optional(v.id("users")),
     mvpId: v.optional(v.id("users")),
     scoreTeamA: v.optional(v.float64()),
@@ -61,6 +65,14 @@ export default defineSchema({
     eloChange: v.optional(v.float64()),
     oldElo: v.optional(v.float64()),
     newElo: v.optional(v.float64()),
+    headshots: v.optional(v.float64()),
+    headshotPercentage: v.optional(v.float64()),
+    tripleKills: v.optional(v.float64()),
+    quadraKills: v.optional(v.float64()),
+    aces: v.optional(v.float64()),
+    clutches: v.optional(v.float64()),
+    firstKills: v.optional(v.float64()),
+    damage: v.optional(v.float64()),
   }).index("by_match", ["matchId"]).index("by_user_match", ["userId", "matchId"]),
 
   match_history: defineTable({

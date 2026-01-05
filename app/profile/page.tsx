@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Trophy, Target, TrendingUp, AlertCircle, Clock, MapPin, ChevronRight } from "lucide-react"
+import { Calendar, Trophy, Target, TrendingUp, AlertCircle, Clock, MapPin, ChevronRight, Link2, ExternalLink } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { useEffect } from "react"
+import { toast } from "sonner"
 
 export default function ProfilePage() {
   const { user: clerkUser } = useUser()
@@ -19,6 +22,27 @@ export default function ProfilePage() {
   const updateSteamId = useMutation(api.users.updateSteamId)
   const [steamId, setSteamId] = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
+  const searchParams = useSearchParams()
+
+  // Handle Steam linking success/error messages
+  useEffect(() => {
+    const steamLinked = searchParams.get("steam_linked")
+    const error = searchParams.get("error")
+
+    if (steamLinked === "true") {
+      toast.success("Conta Steam vinculada com sucesso! ✅")
+    } else if (error) {
+      const errorMessages: Record<string, string> = {
+        steam_validation_failed: "Falha na validação Steam. Tenta novamente.",
+        invalid_steamid: "SteamID inválido recebido.",
+        server_config: "Erro de configuração do servidor.",
+        steam_api_failed: "Falha ao obter dados da Steam.",
+        database_error: "Erro ao guardar na base de dados.",
+        unexpected_error: "Erro inesperado. Tenta novamente.",
+      }
+      toast.error(errorMessages[error] || "Erro ao vincular conta Steam")
+    }
+  }, [searchParams])
 
   const handleUpdateSteamId = async () => {
     if (!steamId.trim()) return
@@ -74,34 +98,81 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Steam Account Section */}
           {profile && !profile.steamId && (
-            <Card className="mb-8 border-yellow-600/50 bg-yellow-600/10">
+            <Card className="mb-8 border-yellow-600/50 bg-gradient-to-br from-yellow-600/10 to-orange-600/10">
               <CardHeader>
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-6 w-6 text-yellow-600" />
                   <div className="flex-1">
-                    <CardTitle className="text-yellow-600">Steam ID Necessária</CardTitle>
+                    <CardTitle className="text-yellow-600">Conta Steam Necessária</CardTitle>
                     <CardDescription className="text-yellow-600/80">
-                      Precisas de adicionar a tua Steam ID para poderes jogar partidas competitivas.
+                      Vincula a tua conta Steam para poderes jogar partidas competitivas. Usamos OpenID para autenticação segura.
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="Ex: STEAM_0:1:12345678"
-                    value={steamId}
-                    onChange={(e) => setSteamId(e.target.value)}
-                    className="border-yellow-600/30 bg-zinc-900/50"
-                  />
-                  <Button
-                    onClick={handleUpdateSteamId}
-                    disabled={isUpdating || !steamId.trim()}
-                    className="bg-yellow-600 hover:bg-yellow-500"
-                  >
-                    {isUpdating ? "A guardar..." : "Guardar"}
+                <a href="/api/auth/steam">
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold uppercase h-14 text-lg">
+                    <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2a10 10 0 0 0-10 10 10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2zm0 2a8 8 0 0 1 8 8 8 8 0 0 1-8 8 8 8 0 0 1-8-8 8 8 0 0 1 8-8zm-1 2v6.414l-2.293-2.293-1.414 1.414L11 15.242V16h2v-.758l3.707-3.707-1.414-1.414L13 12.414V6h-2z"/>
+                    </svg>
+                    Conectar com Steam
+                    <ExternalLink className="w-5 h-5 ml-3" />
                   </Button>
+                </a>
+                <p className="text-xs text-zinc-500 mt-3 text-center">
+                  Serás redirecionado para o Steam para autenticação segura
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Steam Account Linked */}
+          {profile && profile.steamId && (
+            <Card className="mb-8 border-green-600/50 bg-gradient-to-br from-green-600/10 to-emerald-600/10">
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <CardTitle className="text-green-600 flex items-center gap-2">
+                      <Link2 className="h-5 w-5" />
+                      Conta Steam Vinculada
+                    </CardTitle>
+                    <CardDescription className="text-green-600/80">
+                      A tua conta Steam está conectada e pronta para jogar!
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 p-4 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                  {profile.steamAvatar && (
+                    <img 
+                      src={profile.steamAvatar} 
+                      alt="Steam Avatar"
+                      className="w-16 h-16 rounded-lg border-2 border-green-600"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-bold text-zinc-100 text-lg">
+                      {profile.steamName || "Steam User"}
+                    </div>
+                    <div className="text-sm text-zinc-400 font-mono">
+                      SteamID: {profile.steamId}
+                    </div>
+                    {profile.steamProfileUrl && (
+                      <a 
+                        href={profile.steamProfileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1 mt-1"
+                      >
+                        Ver perfil Steam
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

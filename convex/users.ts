@@ -157,3 +157,52 @@ export const updateSteamId = mutation({
     return user._id;
   },
 });
+
+/**
+ * Link Steam account to user
+ * Called from API route after Steam OpenID validation
+ */
+export const linkSteamAccount = mutation({
+  args: {
+    clerkId: v.string(),
+    steamId: v.string(),
+    steamName: v.string(),
+    steamAvatar: v.string(),
+    steamProfileUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    console.log("🔗 Linking Steam account for Clerk ID:", args.clerkId);
+
+    // Find user by Clerk ID
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if Steam ID is already linked to another account
+    const existingSteamUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("steamId"), args.steamId))
+      .first();
+
+    if (existingSteamUser && existingSteamUser._id !== user._id) {
+      throw new Error("This Steam account is already linked to another user");
+    }
+
+    // Update user with Steam data
+    await ctx.db.patch(user._id, {
+      steamId: args.steamId,
+      steamName: args.steamName,
+      steamAvatar: args.steamAvatar,
+      steamProfileUrl: args.steamProfileUrl,
+    });
+
+    console.log("✅ Steam account linked successfully:", args.steamName);
+
+    return { success: true, userId: user._id };
+  },
+});

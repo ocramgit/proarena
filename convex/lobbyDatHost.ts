@@ -23,6 +23,17 @@ export const provisionDatHostServer = action({
       throw new Error("No map selected");
     }
 
+    // RACE CONDITION LOCK: Prevent duplicate server creation
+    if (match.serverIp || match.provisioningStarted) {
+      console.warn("⚠️ Server already provisioning or provisioned!");
+      throw new Error("Server already being provisioned");
+    }
+
+    // Immediately set lock flag
+    await ctx.runMutation(internal.lobbyDatHost.setProvisioningLock, {
+      matchId: args.matchId,
+    });
+
     // Get Steam IDs for all players
     const teamA_steamIds = match.teamAPlayers.map((p: any) => p.steamId);
     const teamB_steamIds = match.teamBPlayers.map((p: any) => p.steamId);
@@ -95,6 +106,17 @@ export const provisionDatHostServer = action({
   },
 });
 
+export const setProvisioningLock = internalMutation({
+  args: {
+    matchId: v.id("matches"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.matchId, {
+      provisioningStarted: true,
+    });
+  },
+});
+
 export const updateMatchWithDatHost = internalMutation({
   args: {
     matchId: v.id("matches"),
@@ -108,6 +130,7 @@ export const updateMatchWithDatHost = internalMutation({
       dathostMatchId: args.dathostMatchId,
       dathostServerId: args.dathostServerId,
       serverIp: args.serverIp,
+      provisioningStarted: true,
     });
 
     return { success: true };
