@@ -60,6 +60,8 @@ export const createDatHostMatch = action({
       const slots = totalPlayers <= 2 ? "5" : "12";
       const serverLocation = args.location || "stockholm";
       
+      const webhookUrl = `${process.env.CONVEX_SITE_URL}/dathost-webhook`;
+      
       const formData = new URLSearchParams();
       formData.append("game", "cs2");
       formData.append("name", `ProArena Match ${Date.now()}`);
@@ -69,12 +71,16 @@ export const createDatHostMatch = action({
       formData.append("autostop", "true");
       formData.append("autostop_minutes", "30");
       
+      // Configure webhook for match events
+      formData.append("csgo_settings.webhook_url", webhookUrl);
+      
       // WHITELIST ENFORCEMENT: Add Steam64 IDs to whitelist
       allSteamIds.forEach((steamId, index) => {
         formData.append(`cs2_settings.steam_game_server_login_token_whitelisted_steam_ids[${index}]`, steamId);
       });
       
       console.log("🔐 Whitelist configured with", allSteamIds.length, "Steam IDs");
+      console.log("🔔 Webhook URL configured:", webhookUrl);
 
       const createServerResponse = await fetch("https://dathost.net/api/0.1/game-servers", {
         method: "POST",
@@ -95,22 +101,6 @@ export const createDatHostMatch = action({
       gameServerId = newServer.id;
       console.log("Created new server:", gameServerId);
       
-      // Configure server with log address for real-time stats
-      const convexSiteUrl = process.env.CONVEX_SITE_URL || process.env.CONVEX_CLOUD_URL;
-      if (convexSiteUrl) {
-        console.log("Configuring log address...");
-        await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            line: `logaddress_add_http "${convexSiteUrl}/cs2-logs"`,
-          }),
-        });
-      }
-      
       // Start the server
       console.log("Starting server...");
       await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/start`, {
@@ -123,18 +113,65 @@ export const createDatHostMatch = action({
       // Wait for server to start
       await new Promise(resolve => setTimeout(resolve, 8000));
       
-      // Set INFINITE warmup time (9999 seconds) - game won't start until we say so
-      console.log("⏰ Setting infinite warmup time (mp_warmuptime 9999)...");
-      await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          line: "mp_warmuptime 9999",
-        }),
-      });
+      const convexSiteUrl = process.env.CONVEX_SITE_URL || process.env.CONVEX_CLOUD_URL;
+      
+      // PHASE 11 SPECIAL: Configure 1v1 settings
+      console.log("⚙️ Configuring 1v1 server settings...");
+      
+      const commands = [
+        "mp_warmuptime 9999", // Infinite warmup until all players connect
+        "mp_maxrounds 30", // MR15 = 30 rounds max
+        "mp_freezetime 3", // Short freeze time for 1v1
+        "mp_halftime 1", // Enable halftime
+        "mp_overtime_enable 1", // Enable overtime
+        "mp_overtime_maxrounds 6", // MR3 overtime
+        "sv_alltalk 0", // No all-talk
+        "mp_match_restart_delay 5", // Quick restart
+      ];
+      
+      for (const command of commands) {
+        await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ line: command }),
+        });
+      }
+      
+      console.log("✅ 1v1 server configured");
+      
+      // Configure log addresses for CS2 events
+      if (convexSiteUrl) {
+        console.log("🎯 Configuring CS2 log endpoints...");
+        
+        // Main CS2 logs endpoint (kills, rounds, etc)
+        await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            line: `logaddress_add_http "${convexSiteUrl}/cs2-logs"`,
+          }),
+        });
+        
+        // Game end notification endpoint
+        await fetch(`https://dathost.net/api/0.1/game-servers/${gameServerId}/console`, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            line: `logaddress_add_http "${convexSiteUrl}/game-end-notify"`,
+          }),
+        });
+        
+        console.log("✅ CS2 log endpoints configured");
+      }
       
       console.log("✅ Server configured with infinite warmup - awaiting all players");
     } catch (error: any) {
@@ -165,6 +202,7 @@ export const createDatHostMatch = action({
         match_begin_countdown: 30,
         enable_plugin: true,
         enable_tech_pause: true,
+        // Note: mr, overtime_mr, knife_round are set via RCON commands instead
       },
     };
 

@@ -1,3 +1,7 @@
+// PHASE 13: DISABLED - Social features not needed for 1v1 MVP
+// Will be re-enabled in future phases
+
+/*
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
@@ -282,3 +286,4 @@ export const getMessages = query({
     return enrichedMessages.filter((m) => m.author !== null).reverse();
   },
 });
+*/

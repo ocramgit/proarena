@@ -1,3 +1,7 @@
+// PHASE 13: DISABLED - Party system not needed for 1v1 MVP
+// Will be re-enabled when 5v5 is implemented
+
+/*
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
@@ -230,3 +234,4 @@ export const kickFromParty = mutation({
     return { success: true };
   },
 });
+*/

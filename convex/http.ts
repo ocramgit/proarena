@@ -86,11 +86,7 @@ http.route({
           continue;
         }
         
-        // Game Over
-        if (line.includes('Game Over:') || line.includes('SFUI_Notice_Match_Final_Score')) {
-          await ctx.runMutation(internal.cs2LogHandlers.handleGameOver, {});
-          continue;
-        }
+        // Game over detection removed - using DatHost match status polling instead
       }
       
       return new Response("OK", { status: 200 });
@@ -107,10 +103,13 @@ http.route({
   handler: httpAction(async (ctx, request) => {
     const body = await request.json();
     
-    console.log("DatHost Webhook received:", body);
+    console.log("🔔🔔🔔 DATHOST WEBHOOK RECEIVED 🔔🔔🔔");
+    console.log("Event type:", body.event);
+    console.log("Full payload:", JSON.stringify(body, null, 2));
 
-    // DatHost sends events like: match_finished, round_end, etc.
+    // DatHost sends events like: match_finished, round_end, server_empty, etc.
     if (body.event === "match_finished") {
+      console.log("🏁🏁🏁 MATCH_FINISHED EVENT DETECTED 🏁🏁🏁");
       const dathostMatchId = body.match_id;
       const winner = body.winner; // "team1" or "team2"
       const scoreTeam1 = body.team1_score || 0;
@@ -140,6 +139,12 @@ http.route({
       }
     }
 
+    // Handle server_empty event - players were kicked or left
+    if (body.event === "server_empty") {
+      console.log("🚨 DatHost server_empty event - all players left/kicked");
+      // Server empty doesn't mean game ended - ignore
+    }
+
     // For other events, just acknowledge
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -147,5 +152,8 @@ http.route({
     });
   }),
 });
+
+// REMOVED - /game-end-notify endpoint not needed
+// Using DatHost match status polling instead
 
 export default http;

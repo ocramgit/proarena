@@ -32,24 +32,19 @@ export const provisionDatHostServer = action({
     console.log("Team A Steam IDs:", teamA_steamIds);
     console.log("Team B Steam IDs:", teamB_steamIds);
 
-    // Determine best server location
-    // For 1v1: Use location with better average ping between 2 players
-    // For 5v5: Use location with better average ping for all players
-    // Available DatHost locations (API IDs):
-    // prague, copenhagen, helsinki, strasbourg, dusseldorf, dublin, milan,
-    // amsterdam, oslo, warsaw, bucharest, barcelona, stockholm, bristol
-    // For now, we'll use a simple heuristic based on player count
-    // TODO: Implement actual ping-based selection when we have player location data
-    const totalPlayers = teamA_steamIds.length + teamB_steamIds.length;
-    let serverLocation = "stockholm"; // Default
+    // PHASE 12: Use selected location from veto
+    // Map location names to DatHost API location IDs
+    const locationMap: Record<string, string> = {
+      "Frankfurt": "dusseldorf", // Closest to Frankfurt
+      "Paris": "strasbourg", // Closest to Paris
+      "Madrid": "barcelona", // Closest to Madrid
+    };
     
-    if (totalPlayers === 2) {
-      // For 1v1, prefer central Europe (Dusseldorf/Frankfurt has best connectivity)
-      serverLocation = "dusseldorf";
-    } else {
-      // For 5v5, use Stockholm (good overall European coverage)
-      serverLocation = "stockholm";
-    }
+    const serverLocation = match.selectedLocation 
+      ? locationMap[match.selectedLocation] || "dusseldorf"
+      : "dusseldorf"; // Default fallback
+    
+    console.log("Selected location:", match.selectedLocation, "-> DatHost location:", serverLocation);
     
     console.log("Selected server location:", serverLocation);
 
@@ -83,6 +78,11 @@ export const provisionDatHostServer = action({
         matchId: args.matchId,
       });
 
+      // Auto-connect bots in 1v1 mode
+      await ctx.runMutation(internal.lobbyDatHost.autoConnectBots, {
+        matchId: args.matchId,
+      });
+
       return {
         success: true,
         serverIp: dathostMatch.connect_string,
@@ -111,5 +111,56 @@ export const updateMatchWithDatHost = internalMutation({
     });
 
     return { success: true };
+  },
+});
+
+// Auto-connect bots in 1v1 mode
+export const autoConnectBots = internalMutation({
+  args: {
+    matchId: v.id("matches"),
+  },
+  handler: async (ctx, args) => {
+    const match = await ctx.db.get(args.matchId);
+    if (!match || match.mode !== "1v1") return;
+
+    console.log("🤖 Auto-connecting bots for 1v1 match");
+
+    // Get all players in the match
+    const allPlayers = [...match.teamA, ...match.teamB];
+
+    for (const playerId of allPlayers) {
+      const user = await ctx.db.get(playerId);
+      if (!user) continue;
+
+      // Check if this is a bot
+      const isBot = user.clerkId.startsWith("fake_");
+      if (!isBot) continue;
+
+      console.log("🤖 Auto-connecting bot:", user.clerkId);
+
+      // Check if player_stats exists
+      const existingStat = await ctx.db
+        .query("player_stats")
+        .withIndex("by_user_match", (q) => 
+          q.eq("userId", playerId).eq("matchId", args.matchId)
+        )
+        .first();
+
+      if (existingStat) {
+        await ctx.db.patch(existingStat._id, { connected: true });
+      } else {
+        await ctx.db.insert("player_stats", {
+          matchId: args.matchId,
+          userId: playerId,
+          kills: 0,
+          deaths: 0,
+          assists: 0,
+          mvps: 0,
+          connected: true,
+        });
+      }
+
+      console.log("✅ Bot marked as connected");
+    }
   },
 });

@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton"
 import { Users, User, Loader2, X } from "lucide-react"
 import { Sidebar } from "@/components/layout/sidebar"
-import { SocialSidebar } from "@/components/social-sidebar"
-import { ChatPanel } from "@/components/chat-panel"
+// PHASE 13: Social features disabled for 1v1 MVP
+// import { SocialSidebar } from "@/components/social-sidebar"
+// import { ChatPanel } from "@/components/chat-panel"
 import { toast } from "sonner"
 
 type GameMode = "1v1" | "5v5" | null
@@ -108,7 +109,8 @@ export function Dashboard() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <SocialSidebar />
+      {/* PHASE 13: Social features disabled */}
+      {/* <SocialSidebar /> */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
         <Button
           onClick={handleSeedQueue}
@@ -151,7 +153,7 @@ export function Dashboard() {
               <p className="text-zinc-400">Escolhe entre duelo 1v1 ou partida completa 5v5</p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <Card
                 className={`cursor-pointer transition-all hover:scale-[1.02] ${
                   selectedMode === "1v1"
@@ -190,15 +192,7 @@ export function Dashboard() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
                       <span className="text-sm text-zinc-400">Teu ELO</span>
-                      <span className="text-lg font-bold text-orange-600">1000</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Partidas</span>
-                      <span className="text-lg font-bold text-zinc-100">0</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Win Rate</span>
-                      <span className="text-lg font-bold text-zinc-100">0%</span>
+                      <span className="text-lg font-bold text-orange-600">{profile?.elo_1v1 || 1000}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -324,7 +318,8 @@ export function Dashboard() {
           </div>
         </div>
       </main>
-      <ChatPanel channelId="global" title="Chat Global" />
+      {/* PHASE 13: Chat disabled for 1v1 MVP */}
+      {/* <ChatPanel channelId="global" title="Chat Global" /> */}
     </div>
   )
 }

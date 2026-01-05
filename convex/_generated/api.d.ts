@@ -8,20 +8,23 @@
  * @module
  */
 
-import type * as authTest from "../authTest.js";
 import type * as crons from "../crons.js";
 import type * as cs2Commands from "../cs2Commands.js";
 import type * as cs2LogHandlers from "../cs2LogHandlers.js";
 import type * as dathost from "../dathost.js";
 import type * as dathostCleanup from "../dathostCleanup.js";
 import type * as dathostLive from "../dathostLive.js";
+import type * as dathostLiveData from "../dathostLiveData.js";
 import type * as dathostStatus from "../dathostStatus.js";
 import type * as debug from "../debug.js";
 import type * as debugStats from "../debugStats.js";
 import type * as dev from "../dev.js";
 import type * as diagnostics from "../diagnostics.js";
 import type * as endgame from "../endgame.js";
+import type * as forceEndGame from "../forceEndGame.js";
 import type * as http from "../http.js";
+import type * as liveMatch from "../liveMatch.js";
+import type * as liveMatchPolling from "../liveMatchPolling.js";
 import type * as lobby from "../lobby.js";
 import type * as lobbyAuto from "../lobbyAuto.js";
 import type * as lobbyDatHost from "../lobbyDatHost.js";
@@ -40,7 +43,6 @@ import type * as server from "../server.js";
 import type * as serverCleanup from "../serverCleanup.js";
 import type * as social from "../social.js";
 import type * as steamIdUtils from "../steamIdUtils.js";
-import type * as testEndgame from "../testEndgame.js";
 import type * as users from "../users.js";
 
 import type {
@@ -50,20 +52,23 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  authTest: typeof authTest;
   crons: typeof crons;
   cs2Commands: typeof cs2Commands;
   cs2LogHandlers: typeof cs2LogHandlers;
   dathost: typeof dathost;
   dathostCleanup: typeof dathostCleanup;
   dathostLive: typeof dathostLive;
+  dathostLiveData: typeof dathostLiveData;
   dathostStatus: typeof dathostStatus;
   debug: typeof debug;
   debugStats: typeof debugStats;
   dev: typeof dev;
   diagnostics: typeof diagnostics;
   endgame: typeof endgame;
+  forceEndGame: typeof forceEndGame;
   http: typeof http;
+  liveMatch: typeof liveMatch;
+  liveMatchPolling: typeof liveMatchPolling;
   lobby: typeof lobby;
   lobbyAuto: typeof lobbyAuto;
   lobbyDatHost: typeof lobbyDatHost;
@@ -82,7 +87,6 @@ declare const fullApi: ApiFromModules<{
   serverCleanup: typeof serverCleanup;
   social: typeof social;
   steamIdUtils: typeof steamIdUtils;
-  testEndgame: typeof testEndgame;
   users: typeof users;
 }>;
 

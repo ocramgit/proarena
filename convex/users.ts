@@ -71,9 +71,25 @@ export const getMyProfile = query({
       return null;
     }
 
-    const totalMatches = 0;
-    const wins = 0;
-    const losses = 0;
+    // PHASE 12: Calculate stats from FINISHED matches only (CANCELLED excluded)
+    const allMatches = await ctx.db
+      .query("matches")
+      .filter((q) => q.eq(q.field("state"), "FINISHED"))
+      .collect();
+
+    const myMatches = allMatches.filter(
+      (match) => match.teamA.includes(user._id) || match.teamB.includes(user._id)
+    );
+
+    const wins = myMatches.filter((match) => {
+      const isInTeamA = match.teamA.includes(user._id);
+      const isInTeamB = match.teamB.includes(user._id);
+      return (isInTeamA && match.winnerId && match.teamA.includes(match.winnerId)) ||
+             (isInTeamB && match.winnerId && match.teamB.includes(match.winnerId));
+    }).length;
+
+    const totalMatches = myMatches.length;
+    const losses = totalMatches - wins;
     const winRate = totalMatches > 0 ? (wins / totalMatches) * 100 : 0;
 
     return {

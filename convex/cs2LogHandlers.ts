@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { steamId64ToSteamId, steamIdToSteamId64 } from "./steamIdUtils";
 
@@ -246,21 +246,109 @@ export const handleRoundEnd = internalMutation({
       return;
     }
     
-    console.log("✅ Found LIVE match:", match._id, "Current scores:", match.scoreTeamA, "-", match.scoreTeamB);
+    console.log("✅ Found LIVE match:", match._id);
+    console.log("📊 Current scores - Team A:", match.scoreTeamA, "Team B:", match.scoreTeamB);
+    console.log("🆔 DatHost Server ID:", match.dathostServerId);
     
     // Update score based on team
+    let newScoreA = match.scoreTeamA || 0;
+    let newScoreB = match.scoreTeamB || 0;
+    
     if (args.team === "CT") {
+      newScoreA = args.score;
       await ctx.db.patch(match._id, {
-        scoreTeamA: args.score,
+        scoreTeamA: newScoreA,
         currentRound: (match.currentRound || 0) + 1,
       });
-      console.log(`✅ Updated Team A (CT) score to ${args.score}, round ${(match.currentRound || 0) + 1}`);
+      console.log(`✅ Updated Team A (CT) score to ${newScoreA}, round ${(match.currentRound || 0) + 1}`);
     } else {
+      newScoreB = args.score;
       await ctx.db.patch(match._id, {
-        scoreTeamB: args.score,
+        scoreTeamB: newScoreB,
         currentRound: (match.currentRound || 0) + 1,
       });
-      console.log(`✅ Updated Team B (T) score to ${args.score}, round ${(match.currentRound || 0) + 1}`);
+      console.log(`✅ Updated Team B (T) score to ${newScoreB}, round ${(match.currentRound || 0) + 1}`);
+    }
+    
+    // Check DatHost match status after each round
+    if (match.dathostMatchId) {
+      console.log("🔍 Checking DatHost match status...");
+      await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.checkDatHostMatchStatus, {
+        matchId: match._id,
+        dathostMatchId: match.dathostMatchId,
+      });
+    }
+  },
+});
+
+// Check DatHost match status to see if game is finished
+export const checkDatHostMatchStatus = internalAction({
+  args: {
+    matchId: v.id("matches"),
+    dathostMatchId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const username = process.env.DATHOST_USERNAME;
+    const password = process.env.DATHOST_PASSWORD;
+
+    if (!username || !password) {
+      console.error("❌ Missing DatHost credentials");
+      return;
+    }
+
+    const auth = btoa(`${username}:${password}`);
+
+    try {
+      const response = await fetch(
+        `https://dathost.net/api/0.1/cs2-matches/${args.dathostMatchId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${auth}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Failed to get match status:", response.status);
+        return;
+      }
+
+      const matchData = await response.json();
+      
+      // Log detailed match status every round
+      console.log("═══════════════════════════════════════");
+      console.log("📊 DATHOST MATCH STATUS");
+      console.log("Match ID:", args.dathostMatchId);
+      console.log("Finished:", matchData.finished);
+      console.log("Team 1 Score:", matchData.team1_stats?.score || 0);
+      console.log("Team 2 Score:", matchData.team2_stats?.score || 0);
+      console.log("Status:", matchData.status || "unknown");
+      console.log("Map:", matchData.map || "unknown");
+      console.log("═══════════════════════════════════════");
+
+      // Check if match is finished
+      if (matchData.finished === true) {
+        console.log("🏁🏁🏁 MATCH IS FINISHED! 🏁🏁🏁");
+        
+        // Determine winner
+        const scoreTeam1 = matchData.team1_stats?.score || 0;
+        const scoreTeam2 = matchData.team2_stats?.score || 0;
+        const winner = scoreTeam1 > scoreTeam2 ? "team1" : "team2";
+        
+        console.log("Winner:", winner);
+        console.log("Final Score:", scoreTeam1, "-", scoreTeam2);
+        
+        // Trigger game end
+        await ctx.runMutation(internal.matchResults.processMatchResult, {
+          dathostMatchId: args.dathostMatchId,
+          winner: winner,
+          scoreTeam1: scoreTeam1,
+          scoreTeam2: scoreTeam2,
+        });
+      }
+    } catch (error) {
+      console.error("Error checking DatHost match status:", error);
     }
   },
 });
@@ -287,41 +375,13 @@ export const handleGameStart = internalMutation({
     });
     
     console.log("✅ Game started - Match is now LIVE:", match._id);
+    
+    // Start DatHost polling for live updates
+    await ctx.scheduler.runAfter(0, internal.liveMatchPolling.startLiveMatchPolling, {
+      matchId: match._id,
+    });
   },
 });
 
-export const handleGameOver = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const match = await ctx.db
-      .query("matches")
-      .filter((q) => q.eq(q.field("state"), "LIVE"))
-      .first();
-    
-    if (!match) return;
-    
-    console.log("🏁 Game over detected - Processing match result:", match._id);
-    
-    // Determine winner based on score
-    const scoreA = match.scoreTeamA || 0;
-    const scoreB = match.scoreTeamB || 0;
-    const winningTeam = scoreA > scoreB ? "teamA" : "teamB";
-    
-    console.log(`Final Score: Team A ${scoreA} - ${scoreB} Team B`);
-    console.log(`Winner: ${winningTeam}`);
-    
-    // Trigger endgame processing (ELO, MVP, match history)
-    await ctx.scheduler.runAfter(0, internal.endgame.processGameOver, {
-      matchId: match._id,
-      winningTeam: winningTeam,
-    });
-    
-    // Trigger server cleanup
-    if (match.dathostMatchId) {
-      console.log("🗑️ Scheduling DatHost server cleanup");
-      await ctx.scheduler.runAfter(5000, internal.endgame.cleanupServer, {
-        matchId: match._id,
-      });
-    }
-  },
-});
+// REMOVED - handleGameOverBackup not needed anymore
+// Game end is detected by checkDatHostMatchStatus polling

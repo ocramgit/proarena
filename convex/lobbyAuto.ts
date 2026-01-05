@@ -16,7 +16,7 @@ export const autoBanLocationForBots = mutation({
       return { success: false, message: "Match is not in VETO state" };
     }
 
-    const locationPool = match.locationPool || ["frankfurt", "paris", "madrid"];
+    const locationPool = match.locationPool || ["Frankfurt", "Paris", "Madrid"];
     const bannedLocations = match.bannedLocations || [];
     
     // Check if location is already selected
@@ -137,8 +137,11 @@ export const autoBanForBots = mutation({
     if (remainingMaps.length === 1) {
       await ctx.db.patch(args.matchId, {
         bannedMaps: newBannedMaps,
+        selectedMap: remainingMaps[0],
         state: "CONFIGURING",
       });
+
+      console.log("🤖 Bot auto-selected final map:", remainingMaps[0]);
 
       return {
         success: true,

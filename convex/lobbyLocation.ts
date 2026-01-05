@@ -37,7 +37,7 @@ export const banLocation = mutation({
       throw new Error("You are not in this match");
     }
 
-    const locationPool = match.locationPool || ["frankfurt", "paris", "madrid"];
+    const locationPool = match.locationPool || ["Frankfurt", "Paris", "Madrid"];
     const bannedLocations = match.bannedLocations || [];
 
     if (bannedLocations.includes(args.location)) {

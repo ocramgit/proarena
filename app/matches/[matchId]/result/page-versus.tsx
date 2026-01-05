@@ -32,13 +32,11 @@ export default function MatchResultPageVersus() {
   const scoreB = match.scoreTeamB || 0;
 
   const currentUserId = currentUser._id;
-  const isPlayerA = currentUserId === playerA?.userId;
-  const isPlayerB = currentUserId === playerB?.userId;
+  const isPlayerA = currentUserId === playerA?._id;
+  const isPlayerB = currentUserId === playerB?._id;
 
+  const userWon = (isPlayerA && scoreA > scoreB) || (isPlayerB && scoreB > scoreA);
   const winner = scoreA > scoreB ? "A" : "B";
-  const userWon = (isPlayerA && winner === "A") || (isPlayerB && winner === "B");
-  
-  console.log("🏆 Results - isPlayerA:", isPlayerA, "isPlayerB:", isPlayerB, "winner:", winner, "userWon:", userWon, "scores:", scoreA, "-", scoreB);
 
   // Get player stats
   const statsA = players.find(p => p.userId === playerA?._id) || { kills: 0, deaths: 0, assists: 0, mvps: 0 };

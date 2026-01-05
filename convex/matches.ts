@@ -125,7 +125,7 @@ export const getMyMatchHistory = query({
       return [];
     }
 
-    // Get all finished matches for this user
+    // PHASE 12: Get all finished matches (exclude CANCELLED from stats)
     const allMatches = await ctx.db
       .query("matches")
       .filter((q) => q.eq(q.field("state"), "FINISHED"))
