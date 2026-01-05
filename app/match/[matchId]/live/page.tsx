@@ -208,25 +208,30 @@ export default function LiveMatchPageVersus() {
                 
                 {/* Team A Score */}
                 <div className="text-center">
-                  <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
-                    {playerA?.displayName || "Jogador A"}
+                  <div className="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-bold">
+                    {playerA?.displayName || playerA?.steamName || "Jogador A"}
                   </div>
                   <div className={`text-8xl font-black ${scoreA > scoreB ? "text-green-500" : "text-zinc-400"}`}>
                     {scoreA}
                   </div>
+                  <div className="text-xs text-zinc-600 mt-2">CT SIDE</div>
                 </div>
 
                 {/* VS Separator */}
-                <div className="text-4xl font-black text-zinc-600">VS</div>
+                <div className="flex flex-col items-center">
+                  <Swords className="w-12 h-12 text-orange-500 mb-2" />
+                  <div className="text-2xl font-black text-zinc-600">VS</div>
+                </div>
 
                 {/* Team B Score */}
                 <div className="text-center">
-                  <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">
-                    {playerB?.displayName || "Jogador B"}
+                  <div className="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-bold">
+                    {playerB?.displayName || playerB?.steamName || "Jogador B"}
                   </div>
                   <div className={`text-8xl font-black ${scoreB > scoreA ? "text-green-500" : "text-zinc-400"}`}>
                     {scoreB}
                   </div>
+                  <div className="text-xs text-zinc-600 mt-2">T SIDE</div>
                 </div>
 
               </div>
@@ -329,67 +334,135 @@ function LivePlayerPanel({
       {/* Avatar */}
       <div className="mb-6">
         <div className={`w-32 h-32 mx-auto rounded-full border-4 ${isCurrentUser ? 'border-orange-500' : 'border-zinc-700'} bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center overflow-hidden`}>
-          {player.avatarUrl ? (
-            <img src={player.avatarUrl} alt={player.displayName} className="w-full h-full object-cover" />
+          {player.steamAvatar || player.avatarUrl ? (
+            <img src={player.steamAvatar || player.avatarUrl} alt={player.displayName} className="w-full h-full object-cover" />
           ) : (
             <span className="text-5xl font-black text-zinc-600">
-              {(player.displayName || "?")[0].toUpperCase()}
+              {(player.displayName || player.steamName || "?")[0].toUpperCase()}
             </span>
           )}
         </div>
       </div>
 
-      {/* Name */}
+      {/* Name & Level */}
       <div className="text-center mb-4">
-        <div className="text-xl font-black text-zinc-100 mb-1">
-          {player.displayName || player.clerkId?.substring(0, 10) || "Jogador"}
+        <div className="text-xl font-black text-zinc-100 mb-2">
+          {player.displayName || player.steamName || "Jogador"}
+        </div>
+        <div className="inline-flex items-center gap-2 bg-zinc-800/50 rounded-full px-3 py-1">
+          <Award className="w-3 h-3 text-yellow-500" />
+          <span className="text-xs font-bold text-zinc-100">
+            Nível {Math.floor(((player.elo_1v1 || 1000) - 1000) / 100) + 1}
+          </span>
         </div>
       </div>
 
-      {/* ELO */}
-      <div className="bg-zinc-800/50 rounded-lg p-4 mb-4">
-        <div className="flex items-center justify-between">
+      {/* ELO with Progress */}
+      <div className="bg-gradient-to-r from-orange-600/10 to-orange-500/10 border border-orange-600/30 rounded-lg p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-orange-500" />
-            <span className="text-sm text-zinc-400">ELO</span>
+            <span className="text-xs text-zinc-400 uppercase font-bold">ELO Rating</span>
           </div>
           <span className="text-2xl font-black text-orange-500">
             {player.elo_1v1 || 1000}
           </span>
         </div>
+        <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-500"
+            style={{ width: `${((player.elo_1v1 || 1000) - 1000) % 100}%` }}
+          />
+        </div>
+        <div className="text-xs text-zinc-500 mt-1">
+          {((player.elo_1v1 || 1000) - 1000) % 100}% para Nível {Math.floor(((player.elo_1v1 || 1000) - 1000) / 100) + 2}
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="space-y-3 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Target className="w-4 h-4" />
-            <span className="text-sm">Kills</span>
+      {/* Win Rate */}
+      {player.stats && (
+        <div className="bg-zinc-800/30 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="w-4 h-4 text-green-500" />
+            <span className="text-xs text-zinc-400 uppercase font-bold">Win Rate</span>
           </div>
-          <span className="text-lg font-bold text-green-500">{stats.kills}</span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Skull className="w-4 h-4" />
-            <span className="text-sm">Deaths</span>
+          <div className="relative w-24 h-24 mx-auto mb-3">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                className="text-zinc-800"
+              />
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="currentColor"
+                strokeWidth="6"
+                fill="none"
+                strokeDasharray={`${2 * Math.PI * 40}`}
+                strokeDashoffset={`${2 * Math.PI * 40 * (1 - (player.stats.winRate || 0) / 100)}`}
+                className="text-green-500 transition-all duration-1000"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl font-black text-green-500">{(player.stats.winRate || 0).toFixed(0)}%</div>
+              </div>
+            </div>
           </div>
-          <span className="text-lg font-bold text-red-500">{stats.deaths}</span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Award className="w-4 h-4" />
-            <span className="text-sm">Assists</span>
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+            <div>
+              <div className="font-bold text-green-500">{player.stats.wins || 0}</div>
+              <div className="text-zinc-500">Vitórias</div>
+            </div>
+            <div>
+              <div className="font-bold text-red-500">{player.stats.losses || 0}</div>
+              <div className="text-zinc-500">Derrotas</div>
+            </div>
           </div>
-          <span className="text-lg font-bold text-blue-500">{stats.assists}</span>
         </div>
+      )}
 
-        {/* K/D Ratio */}
-        <div className="pt-3 border-t border-zinc-800">
+      {/* Live Match Stats */}
+      <div className="bg-zinc-800/30 rounded-lg p-4 mb-4">
+        <div className="text-xs uppercase tracking-wider text-zinc-500 mb-3 font-bold">Stats do Jogo</div>
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">K/D</span>
-            <span className="text-lg font-bold text-orange-600">{kd}</span>
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Target className="w-4 h-4" />
+              <span className="text-sm">Kills</span>
+            </div>
+            <span className="text-xl font-bold text-green-500">{stats.kills}</span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Skull className="w-4 h-4" />
+              <span className="text-sm">Deaths</span>
+            </div>
+            <span className="text-xl font-bold text-red-500">{stats.deaths}</span>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Award className="w-4 h-4" />
+              <span className="text-sm">Assists</span>
+            </div>
+            <span className="text-xl font-bold text-blue-500">{stats.assists}</span>
+          </div>
+
+          {/* K/D Ratio */}
+          <div className="pt-3 border-t border-zinc-800">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400 uppercase font-bold">K/D Ratio</span>
+              <span className="text-2xl font-black text-orange-600">{kd}</span>
+            </div>
           </div>
         </div>
       </div>
