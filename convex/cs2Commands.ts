@@ -18,7 +18,7 @@ export const sendWarmupCommand = internalAction({
     const auth = btoa(`${username}:${password}`);
 
     try {
-      console.log("Sending mp_warmuptime 10 command to server:", args.dathostServerId);
+      console.log("Sending mp_warmuptime 5 command to server:", args.dathostServerId);
       
       const response = await fetch(
         `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
@@ -29,7 +29,7 @@ export const sendWarmupCommand = internalAction({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            line: "mp_warmuptime 10",
+            line: "mp_warmuptime 5",
           }),
         }
       );

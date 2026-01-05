@@ -8,12 +8,12 @@ export const startMatchMonitoring = internalAction({
     matchId: v.id("matches"),
   },
   handler: async (ctx, args) => {
-    // Schedule periodic checks every 5 seconds
-    await ctx.scheduler.runAfter(5000, internal.matchMonitor.checkMatchStatus, {
+    // Schedule periodic checks every 1 second for IMMEDIATE detection
+    await ctx.scheduler.runAfter(1000, internal.matchMonitor.checkMatchStatus, {
       matchId: args.matchId,
     });
     
-    console.log("🔍 Started monitoring match:", args.matchId);
+    console.log("🔍 Started monitoring match (1s interval):", args.matchId);
   },
 });
 
@@ -111,8 +111,8 @@ export const checkMatchStatus = internalAction({
       }
     }
     
-    // Continue monitoring - schedule next check in 5 seconds
-    await ctx.scheduler.runAfter(5000, internal.matchMonitor.checkMatchStatus, {
+    // Continue monitoring - schedule next check in 1 second for IMMEDIATE detection
+    await ctx.scheduler.runAfter(1000, internal.matchMonitor.checkMatchStatus, {
       matchId: args.matchId,
     });
   },

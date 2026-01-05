@@ -60,27 +60,27 @@ export const startCountdown = internalMutation({
       return;
     }
 
-    console.log("⏱️ Starting 10-second countdown...");
+    console.log("⏱️ Starting 5-second countdown for IMMEDIATE game start...");
 
-    // Step 1: Send RCON command to set warmup time to 10 seconds
+    // Step 1: Send RCON command to set warmup time to 5 seconds
     await ctx.scheduler.runAfter(0, internal.lobbyReady.sendCountdownCommand, {
       dathostServerId: args.dathostServerId,
     });
 
-    // Step 2: After 10 seconds, transition to LIVE
-    await ctx.scheduler.runAfter(10000, internal.lobbyReady.transitionToLive, {
+    // Step 2: After 5 seconds, transition to LIVE
+    await ctx.scheduler.runAfter(5000, internal.lobbyReady.transitionToLive, {
       matchId: args.matchId,
     });
   },
 });
 
-// Send RCON command to DatHost to set mp_warmuptime 10
+// Send RCON command to DatHost to set mp_warmuptime 5
 export const sendCountdownCommand = internalMutation({
   args: {
     dathostServerId: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log("📡 Sending mp_warmuptime 10 command to DatHost...");
+    console.log("📡 Sending mp_warmuptime 5 command to DatHost...");
     
     await ctx.scheduler.runAfter(0, internal.cs2Commands.sendWarmupCommand, {
       dathostServerId: args.dathostServerId,

@@ -95,6 +95,14 @@ export default function LobbyV6() {
     return () => clearTimeout(timer);
   }, [match?.bannedMaps?.length, match?.selectedMap, match?.selectedLocation, match?.state, matchId, autoBanForBots]);
 
+  // Auto-redirect to live page when match starts
+  useEffect(() => {
+    if (match?.state === "LIVE") {
+      console.log("🎮 Match is LIVE - redirecting to live page...");
+      router.push(`/match/${matchId}/live`);
+    }
+  }, [match?.state, matchId, router]);
+
   if (!match || !currentUser) {
     return (
       <div className="h-screen w-full bg-zinc-950 flex items-center justify-center">
