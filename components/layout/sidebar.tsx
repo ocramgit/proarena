@@ -2,8 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Gamepad2, Trophy, BarChart3, User } from "lucide-react"
+import { Gamepad2, Trophy, BarChart3, User, Shield } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -31,6 +33,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const isAdmin = useQuery(api.admin.isAdmin)
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-zinc-800 bg-zinc-950">
@@ -67,6 +70,22 @@ export function Sidebar() {
               </Link>
             )
           })}
+          
+          {/* Admin Link - Only visible to admins */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                pathname === "/admin"
+                  ? "border-l-4 border-red-600 bg-red-900/20 text-red-500"
+                  : "text-red-400 hover:bg-red-900/10 hover:text-red-300"
+              )}
+            >
+              <Shield className="h-5 w-5" />
+              <span className="font-black">ADMIN</span>
+            </Link>
+          )}
         </nav>
 
         <div className="border-t border-zinc-800 p-4 space-y-4">

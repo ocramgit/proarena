@@ -40,14 +40,8 @@ export default function LobbyPagePhase12() {
   const [copied, setCopied] = useState(false);
   const [isProvisioning, setIsProvisioning] = useState(false);
 
-  // Auto-redirect based on match state
-  useEffect(() => {
-    if (match?.state === "LIVE") {
-      router.replace(`/match/${matchId}/live`);
-    } else if (match?.state === "FINISHED") {
-      router.replace(`/matches/${matchId}/result`);
-    }
-  }, [match?.state, matchId, router]);
+  // REMOVED: Auto-redirect - Let players navigate freely
+  // Players can manually go to /match/${matchId}/live when ready
 
   // Auto-provision server when map is selected
   useEffect(() => {
@@ -349,30 +343,43 @@ export default function LobbyPagePhase12() {
                 </div>
               </div>
               
-              <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 max-w-2xl mx-auto">
+              <div className="bg-zinc-900/50 backdrop-blur-sm rounded-lg border border-zinc-800 p-6 max-w-2xl mx-auto space-y-4">
                 <div className="text-sm uppercase tracking-wider text-zinc-500 mb-3">IP do Servidor</div>
                 <code className="text-2xl font-mono text-orange-500 block mb-4">
                   connect {match.serverIp}
                 </code>
-                <Button
-                  onClick={copyServerIP}
-                  className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase"
-                  size="lg"
-                >
-                  {copied ? (
-                    <>
-                      <Copy className="w-5 h-5 mr-2" />
-                      Copiado!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-5 h-5 mr-2" />
-                      Copiar Comando
-                    </>
-                  )}
-                </Button>
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={copyServerIP}
+                    className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase"
+                    size="lg"
+                  >
+                    {copied ? (
+                      <>
+                        <Copy className="w-5 h-5 mr-2" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5 mr-2" />
+                        Copiar Comando
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => router.push(`/match/${matchId}/live`)}
+                    className="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold uppercase"
+                    size="lg"
+                  >
+                    <Trophy className="w-5 h-5 mr-2" />
+                    Ver Jogo Ao Vivo
+                  </Button>
+                </div>
+                
                 <p className="text-xs text-zinc-500 mt-4">
-                  Cole este comando no console do CS2 (tecla ~)
+                  Cole o comando no console do CS2 (tecla ~) e clica em "Ver Jogo Ao Vivo" quando estiveres pronto
                 </p>
               </div>
             </div>

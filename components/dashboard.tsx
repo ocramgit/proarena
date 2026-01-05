@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../convex/_generated/api"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Users, User, Loader2, X } from "lucide-react"
+import { 
+  Users, User, Loader2, X, Zap, Trophy, Target, 
+  Clock, CheckCircle2, XCircle, Flame, Shield,
+  TrendingUp, Award, Lock
+} from "lucide-react"
 import { Sidebar } from "@/components/layout/sidebar"
-// PHASE 13: Social features disabled for 1v1 MVP
-// import { SocialSidebar } from "@/components/social-sidebar"
-// import { ChatPanel } from "@/components/chat-panel"
 import { toast } from "sonner"
 
 type GameMode = "1v1" | "5v5" | null
@@ -20,6 +21,8 @@ export function Dashboard() {
   const router = useRouter()
   const [selectedMode, setSelectedMode] = useState<GameMode>(null)
   const [waitTime, setWaitTime] = useState(0)
+  const [confirmationTimer, setConfirmationTimer] = useState(20)
+  const [hasConfirmed, setHasConfirmed] = useState(false)
   
   const profile = useQuery(api.users.getMyProfile)
   const activeMatch = useQuery(api.matches.getMyActiveMatch)
@@ -29,17 +32,13 @@ export function Dashboard() {
   
   const joinQueue = useMutation(api.queue.joinQueue)
   const leaveQueue = useMutation(api.queue.leaveQueue)
-  const seedQueue = useMutation(api.dev.seedQueue)
-  const seed1v1Queue = useMutation(api.dev.seed1v1Queue)
   
   const isInQueue = !!queueStatus
   const queueMode = queueStatus?.mode
   
-  // Show notification if player has active match, but don't force redirect
-  // This allows players to navigate freely while match is ongoing
+  // Show notification if player has active match
   useEffect(() => {
     if (activeMatch && activeMatch.state !== "FINISHED") {
-      // Only show toast notification, don't force redirect
       const matchStateText = activeMatch.state === "LIVE" ? "ao vivo" : 
                             activeMatch.state === "WARMUP" ? "em aquecimento" : 
                             activeMatch.state === "VETO" ? "em veto" : "ativa";
@@ -52,8 +51,9 @@ export function Dashboard() {
         duration: 5000,
       });
     }
-  }, [activeMatch?._id]) // Only trigger when match ID changes, not on every render
+  }, [activeMatch?._id])
   
+  // Queue wait time counter
   useEffect(() => {
     if (queueStatus) {
       const interval = setInterval(() => {
@@ -62,12 +62,41 @@ export function Dashboard() {
       return () => clearInterval(interval)
     }
   }, [queueStatus])
+
+  // Confirmation timer (simulated - in real app this would come from backend)
+  useEffect(() => {
+    if (activeMatch && activeMatch.state === "VETO" && !hasConfirmed) {
+      const timer = setInterval(() => {
+        setConfirmationTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            // In real app: auto-leave queue if not confirmed
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [activeMatch?.state, hasConfirmed])
   
   const handleJoinQueue = async () => {
     if (!selectedMode) return
     
+    // Check if Steam is linked
+    if (!profile?.steamId) {
+      toast.error("Vincula a tua conta Steam primeiro!", {
+        action: {
+          label: "Ir para Perfil",
+          onClick: () => router.push("/profile")
+        }
+      })
+      return
+    }
+    
     try {
       await joinQueue({ mode: selectedMode })
+      toast.success("Entraste na fila!")
     } catch (error: any) {
       toast.error(error.message || "Erro ao entrar na fila")
     }
@@ -77,9 +106,15 @@ export function Dashboard() {
     try {
       await leaveQueue()
       setWaitTime(0)
+      toast.info("Saíste da fila")
     } catch (error: any) {
       toast.error(error.message || "Erro ao sair da fila")
     }
+  }
+
+  const handleConfirmMatch = () => {
+    setHasConfirmed(true)
+    toast.success("Partida confirmada! ✅")
   }
   
   const formatTime = (seconds: number) => {
@@ -87,174 +122,75 @@ export function Dashboard() {
     const secs = seconds % 60
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
-  
-  const handleSeedQueue = async () => {
-    try {
-      await seedQueue({ count: 9, mode: "5v5" })
-      toast.success("Fila preenchida com 9 jogadores fake!")
-    } catch (error: any) {
-      toast.error(error.message)
-    }
-  }
 
-  const handleSeed1v1Queue = async () => {
-    try {
-      await seed1v1Queue({})
-      toast.success("Bot adicionado à fila 1v1!")
-    } catch (error: any) {
-      toast.error(error.message)
-    }
-  }
+  // Show confirmation modal if match found
+  const showConfirmation = activeMatch && activeMatch.state === "VETO" && !hasConfirmed
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      {/* PHASE 13: Social features disabled */}
-      {/* <SocialSidebar /> */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        <Button
-          onClick={handleSeedQueue}
-          variant="outline"
-          size="sm"
-          className="border-orange-600 bg-orange-600/10 text-orange-600 hover:bg-orange-600/20"
-        >
-          DEV: Encher Fila (9x 5v5)
-        </Button>
-        <Button
-          onClick={handleSeed1v1Queue}
-          variant="outline"
-          size="sm"
-          className="border-blue-600 bg-blue-600/10 text-blue-600 hover:bg-blue-600/20"
-        >
-          DEV: Encher Fila (1x 1v1)
-        </Button>
-      </div>
-      <main className="ml-64 flex-1 overflow-y-auto">
-        <div className="min-h-screen">
-          <div className="relative h-[400px] overflow-hidden bg-gradient-to-b from-zinc-900 to-zinc-950">
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1920')] bg-cover bg-center opacity-20" />
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            
-            <div className="relative z-10 flex h-full items-center justify-center">
-              <div className="text-center">
-                <h1 className="mb-4 text-6xl font-black uppercase tracking-tight text-zinc-100">
-                  Jogar CS2
-                </h1>
-                <p className="text-lg text-zinc-400">
-                  Escolhe o teu modo de jogo e entra na competição
-                </p>
-              </div>
+      
+      <main className="ml-64 flex-1 bg-zinc-950">
+        
+        {/* Hero Section */}
+        <div className="relative h-80 overflow-hidden bg-gradient-to-br from-orange-900/20 via-zinc-900 to-zinc-950">
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1920')] bg-cover bg-center opacity-10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent" />
+          
+          <div className="relative container mx-auto h-full flex flex-col justify-center px-8">
+            <div className="max-w-3xl">
+              <h1 className="text-6xl font-black uppercase text-zinc-100 mb-4 tracking-tight">
+                Pronto para Competir?
+              </h1>
+              <p className="text-xl text-zinc-400 mb-6">
+                Escolhe o teu modo de jogo e entra na fila para encontrar adversários
+              </p>
+              
+              {/* Player Stats Quick View */}
+              {profile && (
+                <div className="flex gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-orange-500" />
+                    <span className="text-zinc-400">ELO:</span>
+                    <span className="font-bold text-orange-500">{Math.round(profile.elo_1v1)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-green-500" />
+                    <span className="text-zinc-400">Win Rate:</span>
+                    <span className="font-bold text-green-500">{profile.stats?.winRate?.toFixed(0) || 0}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-red-500" />
+                    <span className="text-zinc-400">Partidas:</span>
+                    <span className="font-bold text-zinc-100">{profile.stats?.totalMatches || 0}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="container mx-auto max-w-6xl px-6 py-12">
-            <div className="mb-8">
-              <h2 className="mb-2 text-2xl font-bold text-zinc-100">Seleciona o Modo</h2>
-              <p className="text-zinc-400">Escolhe entre duelo 1v1 ou partida completa 5v5</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <Card
-                className={`cursor-pointer transition-all hover:scale-[1.02] ${
-                  selectedMode === "1v1"
-                    ? "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-950"
-                    : ""
-                }`}
-                onClick={() => setSelectedMode("1v1")}
-              >
-                <CardHeader>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-orange-600/10">
-                      <User className="h-8 w-8 text-orange-600" />
-                    </div>
-                    {selectedMode === "1v1" && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600">
-                        <svg
-                          className="h-5 w-5 text-white"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path d="M5 13l4 4L19 7"></path>
-                        </svg>
-                      </div>
-                    )}
+        {/* Main Content */}
+        <div className="container mx-auto px-8 py-12">
+          
+          {/* Active Match Alert */}
+          {activeMatch && activeMatch.state !== "FINISHED" && (
+            <Card className="mb-8 border-green-600/50 bg-gradient-to-r from-green-600/10 to-emerald-600/10 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-white" />
                   </div>
-                  <CardTitle className="text-3xl font-black uppercase">1v1 Duel</CardTitle>
-                  <CardDescription className="text-base">
-                    Duelo individual contra um adversário
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Teu ELO</span>
-                      <span className="text-lg font-bold text-orange-600">{profile?.elo_1v1 || 1000}</span>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-black text-green-500 uppercase">Partida Ativa</h3>
+                    <p className="text-sm text-zinc-400">
+                      {activeMatch.state === "VETO" ? "Fase de veto em progresso" : 
+                       activeMatch.state === "WARMUP" ? "Servidor pronto - Aquecimento" :
+                       activeMatch.state === "LIVE" ? "Partida ao vivo" : "Partida em progresso"}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all hover:scale-[1.02] ${
-                  selectedMode === "5v5"
-                    ? "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-950"
-                    : ""
-                }`}
-                onClick={() => setSelectedMode("5v5")}
-              >
-                <CardHeader>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-orange-600/10">
-                      <Users className="h-8 w-8 text-orange-600" />
-                    </div>
-                    {selectedMode === "5v5" && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600">
-                        <svg
-                          className="h-5 w-5 text-white"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path d="M5 13l4 4L19 7"></path>
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <CardTitle className="text-3xl font-black uppercase">5v5 Match</CardTitle>
-                  <CardDescription className="text-base">
-                    Partida competitiva completa em equipa
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Teu ELO</span>
-                      <span className="text-lg font-bold text-orange-600">1000</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Partidas</span>
-                      <span className="text-lg font-bold text-zinc-100">0</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-zinc-900/50 p-3">
-                      <span className="text-sm text-zinc-400">Win Rate</span>
-                      <span className="text-lg font-bold text-zinc-100">0%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mt-12 flex justify-center">
-              {activeMatch ? (
+                </div>
                 <Button
-                  size="lg"
                   onClick={() => {
                     if (activeMatch.state === "LIVE") {
                       router.push(`/match/${activeMatch._id}/live`);
@@ -262,64 +198,237 @@ export function Dashboard() {
                       router.push(`/lobby/${activeMatch._id}`);
                     }
                   }}
-                  className="h-16 px-16 text-xl font-black uppercase tracking-wide bg-green-600 hover:bg-green-500"
-                >
-                  VOLTAR À PARTIDA
-                </Button>
-              ) : isInQueue ? (
-                <div className="flex flex-col items-center gap-4">
-                  <Button
-                    size="lg"
-                    onClick={handleLeaveQueue}
-                    variant="outline"
-                    className="h-16 px-16 text-xl font-black uppercase tracking-wide border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
-                  >
-                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                    A Procurar... {formatTime(waitTime)}
-                    <X className="ml-3 h-6 w-6" />
-                  </Button>
-                  <p className="text-sm text-zinc-400">Modo: {queueMode?.toUpperCase()} • Clica para cancelar</p>
-                </div>
-              ) : (
-                <Button
+                  className="bg-green-600 hover:bg-green-500 text-white font-bold uppercase"
                   size="lg"
-                  disabled={!selectedMode}
-                  onClick={handleJoinQueue}
-                  className="h-16 px-16 text-xl font-black uppercase tracking-wide"
                 >
-                  {selectedMode ? `Jogar ${selectedMode}` : "Seleciona um modo"}
+                  {activeMatch.state === "LIVE" ? "Ver Jogo" : "Ir para Lobby"}
                 </Button>
-              )}
-            </div>
+              </div>
+            </Card>
+          )}
 
-            {selectedMode && (
-              <div className="mt-8 rounded-lg border border-zinc-800 bg-faceit-panel p-6">
-                <h3 className="mb-4 text-lg font-bold text-zinc-100">Informação da Fila</h3>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg bg-zinc-900/50 p-4">
-                    <p className="text-sm text-zinc-400">Jogadores na Fila</p>
-                    {selectedMode === "1v1" ? (
-                      <p className="mt-1 text-2xl font-bold text-orange-600">{queueCount1v1 ?? 0}</p>
-                    ) : (
-                      <p className="mt-1 text-2xl font-bold text-orange-600">{queueCount5v5 ?? 0}</p>
+          {/* Queue Status */}
+          {isInQueue && (
+            <Card className="mb-8 border-orange-600/50 bg-gradient-to-r from-orange-600/10 to-orange-500/10 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
+                  <div>
+                    <h3 className="text-lg font-black text-orange-500 uppercase">A Procurar Partida</h3>
+                    <p className="text-sm text-zinc-400">
+                      Modo: <span className="font-bold text-zinc-100">{queueMode?.toUpperCase()}</span> • 
+                      Tempo: <span className="font-bold text-orange-500">{formatTime(waitTime)}</span>
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleLeaveQueue}
+                  variant="destructive"
+                  className="font-bold uppercase"
+                  size="lg"
+                >
+                  <X className="w-5 h-5 mr-2" />
+                  Sair da Fila
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Mode Selection */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-black text-zinc-100 mb-6 uppercase">Escolhe o Modo de Jogo</h2>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              
+              {/* 1v1 Mode */}
+              <Card 
+                className={`group relative overflow-hidden border-2 transition-all duration-300 cursor-pointer ${
+                  selectedMode === "1v1" 
+                    ? "border-orange-600 bg-orange-600/10 scale-105 shadow-2xl shadow-orange-600/20" 
+                    : "border-zinc-800 bg-zinc-900/50 hover:border-orange-600/50 hover:scale-102"
+                }`}
+                onClick={() => !isInQueue && setSelectedMode("1v1")}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="relative p-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-600 to-orange-500 flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </div>
+                    {selectedMode === "1v1" && (
+                      <CheckCircle2 className="w-8 h-8 text-orange-500" />
                     )}
                   </div>
-                  <div className="rounded-lg bg-zinc-900/50 p-4">
-                    <p className="text-sm text-zinc-400">Tempo Médio de Espera</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-100">~2min</p>
+                  
+                  <h3 className="text-3xl font-black text-zinc-100 mb-2 uppercase">1v1 Duel</h3>
+                  <p className="text-zinc-400 mb-6">
+                    Enfrenta um adversário em mapas de aim. Rápido, intenso e competitivo.
+                  </p>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <Clock className="w-4 h-4 text-orange-500" />
+                      <span>Duração: ~10 minutos</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <Target className="w-4 h-4 text-orange-500" />
+                      <span>MR15 (Primeiro a 16)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <Users className="w-4 h-4 text-orange-500" />
+                      <span>Na fila: {queueCount1v1 || 0} jogadores</span>
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-zinc-900/50 p-4">
-                    <p className="text-sm text-zinc-400">Partidas Ativas</p>
-                    <p className="mt-1 text-2xl font-bold text-zinc-100">0</p>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="px-3 py-1 rounded-full bg-orange-600/20 text-orange-500 font-bold uppercase text-xs">
+                      Disponível
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              </Card>
+
+              {/* 5v5 Mode - Coming Soon */}
+              <Card className="group relative overflow-hidden border-2 border-zinc-800 bg-zinc-900/30 opacity-60 cursor-not-allowed">
+                <div className="absolute inset-0 bg-gradient-to-br from-zinc-700/10 to-transparent" />
+                
+                <div className="relative p-8">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center">
+                      <Users className="w-8 h-8 text-zinc-600" />
+                    </div>
+                    <Lock className="w-6 h-6 text-zinc-600" />
+                  </div>
+                  
+                  <h3 className="text-3xl font-black text-zinc-500 mb-2 uppercase">5v5 Match</h3>
+                  <p className="text-zinc-600 mb-6">
+                    Partidas competitivas 5v5 em mapas clássicos do CS2.
+                  </p>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Clock className="w-4 h-4" />
+                      <span>Duração: ~45 minutos</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Target className="w-4 h-4" />
+                      <span>MR12 (Primeiro a 13)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Users className="w-4 h-4" />
+                      <span>10 jogadores necessários</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="px-3 py-1 rounded-full bg-zinc-800 text-zinc-500 font-bold uppercase text-xs">
+                      Em Breve
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
           </div>
+
+          {/* Action Button */}
+          {!isInQueue && !activeMatch && (
+            <div className="flex justify-center">
+              <Button
+                onClick={handleJoinQueue}
+                disabled={!selectedMode || !profile?.steamId}
+                className="h-20 px-16 text-2xl font-black uppercase tracking-wide bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-600/20"
+              >
+                {!profile?.steamId ? (
+                  <>
+                    <Lock className="w-6 h-6 mr-3" />
+                    Vincula Steam Primeiro
+                  </>
+                ) : !selectedMode ? (
+                  "Escolhe um Modo"
+                ) : (
+                  <>
+                    <Zap className="w-6 h-6 mr-3" />
+                    Entrar na Fila
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
         </div>
       </main>
-      {/* PHASE 13: Chat disabled for 1v1 MVP */}
-      {/* <ChatPanel channelId="global" title="Chat Global" /> */}
+
+      {/* FACEIT-Style Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-2xl border-2 border-orange-600 bg-zinc-900 shadow-2xl shadow-orange-600/20">
+            <div className="p-8 text-center">
+              
+              {/* Timer Circle */}
+              <div className="relative w-32 h-32 mx-auto mb-6">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="58"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="none"
+                    className="text-zinc-800"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="58"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 58}`}
+                    strokeDashoffset={`${2 * Math.PI * 58 * (1 - confirmationTimer / 20)}`}
+                    className="text-orange-500 transition-all duration-1000"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-5xl font-black text-orange-500">{confirmationTimer}</div>
+                </div>
+              </div>
+
+              <h2 className="text-4xl font-black text-zinc-100 uppercase mb-4">
+                Partida Encontrada!
+              </h2>
+              <p className="text-xl text-zinc-400 mb-8">
+                Confirma a tua presença em <span className="text-orange-500 font-bold">{confirmationTimer} segundos</span>
+              </p>
+
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={handleConfirmMatch}
+                  className="h-16 px-12 text-xl font-black uppercase bg-green-600 hover:bg-green-500"
+                >
+                  <CheckCircle2 className="w-6 h-6 mr-3" />
+                  Confirmar
+                </Button>
+                <Button
+                  onClick={handleLeaveQueue}
+                  variant="destructive"
+                  className="h-16 px-12 text-xl font-black uppercase"
+                >
+                  <XCircle className="w-6 h-6 mr-3" />
+                  Recusar
+                </Button>
+              </div>
+
+              <p className="text-sm text-zinc-500 mt-6">
+                Se não confirmares, serás removido da fila automaticamente
+              </p>
+            </div>
+          </Card>
+        </div>
+      )}
+
     </div>
   )
 }
