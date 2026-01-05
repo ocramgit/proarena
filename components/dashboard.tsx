@@ -32,6 +32,8 @@ export function Dashboard() {
   
   const joinQueue = useMutation(api.queue.joinQueue)
   const leaveQueue = useMutation(api.queue.leaveQueue)
+  const confirmMatch = useMutation(api.matchConfirmation.confirmMatch)
+  const declineMatch = useMutation(api.matchConfirmation.declineMatch)
   
   const isInQueue = !!queueStatus
   const queueMode = queueStatus?.mode
@@ -112,9 +114,32 @@ export function Dashboard() {
     }
   }
 
-  const handleConfirmMatch = () => {
-    setHasConfirmed(true)
-    toast.success("Partida confirmada! ✅")
+  const handleConfirmMatch = async () => {
+    if (!activeMatch) return;
+    
+    try {
+      const result = await confirmMatch({ matchId: activeMatch._id });
+      setHasConfirmed(true);
+      
+      if (result.allConfirmed) {
+        toast.success("Todos confirmaram! Iniciando veto... 🎉");
+      } else {
+        toast.success("Confirmado! Aguardando adversário... ✅");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao confirmar");
+    }
+  };
+
+  const handleDeclineMatch = async () => {
+    if (!activeMatch) return;
+    
+    try {
+      await declineMatch({ matchId: activeMatch._id });
+      toast.error("Partida recusada. Cooldown de 1 minuto aplicado.");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao recusar");
+    }
   }
   
   const formatTime = (seconds: number) => {
@@ -124,7 +149,7 @@ export function Dashboard() {
   }
 
   // Show confirmation modal if match found
-  const showConfirmation = activeMatch && activeMatch.state === "VETO" && !hasConfirmed
+  const showConfirmation = activeMatch && activeMatch.state === "CONFIRMING" && !hasConfirmed
 
   return (
     <div className="flex min-h-screen">
@@ -412,7 +437,7 @@ export function Dashboard() {
                   Confirmar
                 </Button>
                 <Button
-                  onClick={handleLeaveQueue}
+                  onClick={handleDeclineMatch}
                   variant="destructive"
                   className="h-16 px-12 text-xl font-black uppercase"
                 >

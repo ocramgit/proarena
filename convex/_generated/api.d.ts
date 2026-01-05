@@ -31,6 +31,7 @@ import type * as lobbyAuto from "../lobbyAuto.js";
 import type * as lobbyDatHost from "../lobbyDatHost.js";
 import type * as lobbyLocation from "../lobbyLocation.js";
 import type * as lobbyReady from "../lobbyReady.js";
+import type * as matchConfirmation from "../matchConfirmation.js";
 import type * as matchMonitor from "../matchMonitor.js";
 import type * as matchPostGame from "../matchPostGame.js";
 import type * as matchQueries from "../matchQueries.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   lobbyDatHost: typeof lobbyDatHost;
   lobbyLocation: typeof lobbyLocation;
   lobbyReady: typeof lobbyReady;
+  matchConfirmation: typeof matchConfirmation;
   matchMonitor: typeof matchMonitor;
   matchPostGame: typeof matchPostGame;
   matchQueries: typeof matchQueries;

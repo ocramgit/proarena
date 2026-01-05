@@ -20,10 +20,12 @@ export default defineSchema({
     userId: v.id("users"),
     mode: v.union(v.literal("1v1"), v.literal("5v5")),
     joinedAt: v.int64(),
-  }).index("by_mode", ["mode"]),
+    cooldownUntil: v.optional(v.int64()),
+  }).index("by_mode", ["mode"]).index("by_user", ["userId"]),
 
   matches: defineTable({
     state: v.union(
+      v.literal("CONFIRMING"),
       v.literal("VETO"),
       v.literal("CONFIGURING"),
       v.literal("WARMUP"),
@@ -34,6 +36,8 @@ export default defineSchema({
     mode: v.union(v.literal("1v1"), v.literal("5v5")),
     teamA: v.array(v.id("users")),
     teamB: v.array(v.id("users")),
+    acceptedPlayers: v.optional(v.array(v.id("users"))),
+    confirmationDeadline: v.optional(v.int64()),
     mapPool: v.array(v.string()),
     bannedMaps: v.array(v.string()),
     selectedMap: v.optional(v.string()),
