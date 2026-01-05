@@ -53,8 +53,12 @@ export default function LobbyV6() {
     ) {
       setIsProvisioning(true);
       provisionServer({ matchId })
-        .then(() => toast.success("Servidor provisionado!"))
-        .catch((error) => toast.error("Erro ao provisionar servidor"))
+        .then(() => {
+          // Servidor provisionado silenciosamente
+        })
+        .catch((error) => {
+          console.error("Erro ao provisionar servidor:", error);
+        })
         .finally(() => setIsProvisioning(false));
     }
   }, [match?.state, match?.serverIp, match?.provisioningStarted, matchId, provisionServer, isProvisioning]);
@@ -69,9 +73,7 @@ export default function LobbyV6() {
     const timer = setTimeout(async () => {
       try {
         const result = await autoBanLocationForBots({ matchId });
-        if (result.success && result.bannedLocation) {
-          toast.info(`🤖 Bot baniu: ${result.bannedLocation}`);
-        }
+        // Bot ban silencioso
       } catch (error) {}
     }, 2000);
     return () => clearTimeout(timer);
@@ -87,9 +89,7 @@ export default function LobbyV6() {
     const timer = setTimeout(async () => {
       try {
         const result = await autoBanForBots({ matchId });
-        if (result.success && result.bannedMap) {
-          toast.info(`🤖 Bot baniu: ${result.bannedMap}`);
-        }
+        // Bot ban silencioso
       } catch (error) {}
     }, 2000);
     return () => clearTimeout(timer);
@@ -140,35 +140,30 @@ export default function LobbyV6() {
 
   const handleLocationBan = async (location: string) => {
     if (!isLocationYourTurn) {
-      toast.error("Não é a tua vez!");
       return;
     }
     try {
       await banLocation({ matchId, location });
-      toast.success(`${location} banido!`);
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Erro ao banir localização:", error);
     }
   };
 
   const handleMapBan = async (mapName: string) => {
     if (!isMapYourTurn) {
-      toast.error("Não é a tua vez!");
       return;
     }
     try {
       await banMap({ matchId, mapName });
-      toast.success(`${mapName} banido!`);
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Erro ao banir mapa:", error);
     }
   };
 
-  const copyServerIP = () => {
+  const handleCopyConnect = () => {
     if (match.serverIp) {
       navigator.clipboard.writeText(`connect ${match.serverIp}`);
       setCopied(true);
-      toast.success("Comando copiado!");
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -341,7 +336,7 @@ export default function LobbyV6() {
                     
                     <div className="grid grid-cols-2 gap-4">
                       <Button
-                        onClick={copyServerIP}
+                        onClick={handleCopyConnect}
                         className="h-16 bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase text-lg"
                       >
                         {copied ? (
