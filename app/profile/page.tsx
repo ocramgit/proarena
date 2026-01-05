@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "../../convex/_generated/api"
@@ -12,19 +12,11 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Calendar, Trophy, Target, TrendingUp, AlertCircle, Clock, MapPin, ChevronRight, Link2, ExternalLink } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { useEffect } from "react"
 import { toast } from "sonner"
 
-export default function ProfilePage() {
-  const { user: clerkUser } = useUser()
-  const profile = useQuery(api.users.getMyProfile)
-  const matchHistory = useQuery(api.matches.getMyMatchHistory)
-  const updateSteamId = useMutation(api.users.updateSteamId)
-  const [steamId, setSteamId] = useState("")
-  const [isUpdating, setIsUpdating] = useState(false)
+function SteamLinkingNotifications() {
   const searchParams = useSearchParams()
 
-  // Handle Steam linking success/error messages
   useEffect(() => {
     const steamLinked = searchParams.get("steam_linked")
     const error = searchParams.get("error")
@@ -44,6 +36,17 @@ export default function ProfilePage() {
     }
   }, [searchParams])
 
+  return null
+}
+
+export default function ProfilePage() {
+  const { user: clerkUser } = useUser()
+  const profile = useQuery(api.users.getMyProfile)
+  const matchHistory = useQuery(api.matches.getMyMatchHistory)
+  const updateSteamId = useMutation(api.users.updateSteamId)
+  const [steamId, setSteamId] = useState("")
+  const [isUpdating, setIsUpdating] = useState(false)
+
   const handleUpdateSteamId = async () => {
     if (!steamId.trim()) return
     setIsUpdating(true)
@@ -62,6 +65,9 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen">
+      <Suspense fallback={null}>
+        <SteamLinkingNotifications />
+      </Suspense>
       <Sidebar />
       <main className="ml-64 flex-1 overflow-y-auto bg-zinc-950">
         <div className="relative h-64 overflow-hidden bg-gradient-to-br from-orange-900/20 via-zinc-900 to-zinc-950">
