@@ -23,6 +23,7 @@ export function Dashboard() {
   const [waitTime, setWaitTime] = useState(0)
   const [confirmationTimer, setConfirmationTimer] = useState(20)
   const [hasConfirmed, setHasConfirmed] = useState(false)
+  const [cooldownRemaining, setCooldownRemaining] = useState(0)
   
   const profile = useQuery(api.users.getMyProfile)
   const activeMatch = useQuery(api.matches.getMyActiveMatch)
@@ -37,6 +38,7 @@ export function Dashboard() {
   
   const isInQueue = !!queueStatus
   const queueMode = queueStatus?.mode
+  const hasCooldown = !!(queueStatus?.cooldownUntil && Number(queueStatus.cooldownUntil) > Date.now())
   
   // Show notification if player has active match
   useEffect(() => {
@@ -65,22 +67,38 @@ export function Dashboard() {
     }
   }, [queueStatus])
 
-  // Confirmation timer (simulated - in real app this would come from backend)
+  // Confirmation timer - REAL from backend
   useEffect(() => {
-    if (activeMatch && activeMatch.state === "VETO" && !hasConfirmed) {
-      const timer = setInterval(() => {
-        setConfirmationTimer((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer)
-            // In real app: auto-leave queue if not confirmed
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      return () => clearInterval(timer)
+    if (activeMatch && activeMatch.state === "CONFIRMING" && activeMatch.confirmationDeadline) {
+      const updateTimer = () => {
+        const remaining = Math.max(0, Math.floor((Number(activeMatch.confirmationDeadline) - Date.now()) / 1000));
+        setConfirmationTimer(remaining);
+      };
+      
+      updateTimer();
+      const timer = setInterval(updateTimer, 1000);
+      return () => clearInterval(timer);
     }
-  }, [activeMatch?.state, hasConfirmed])
+  }, [activeMatch?.state, activeMatch?.confirmationDeadline])
+
+  // Cooldown timer
+  useEffect(() => {
+    if (queueStatus?.cooldownUntil) {
+      const updateCooldown = () => {
+        const remaining = Math.max(0, Math.ceil((Number(queueStatus.cooldownUntil) - Date.now()) / 1000));
+        setCooldownRemaining(remaining);
+        
+        // Auto-remove from queue when cooldown expires
+        if (remaining === 0 && hasCooldown) {
+          leaveQueue().catch(() => {});
+        }
+      };
+      
+      updateCooldown();
+      const timer = setInterval(updateCooldown, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [queueStatus?.cooldownUntil, hasCooldown, leaveQueue])
   
   const handleJoinQueue = async () => {
     if (!selectedMode) return
@@ -135,8 +153,11 @@ export function Dashboard() {
     if (!activeMatch) return;
     
     try {
-      await declineMatch({ matchId: activeMatch._id });
+      const result = await declineMatch({ matchId: activeMatch._id });
       toast.error("Partida recusada. Cooldown de 1 minuto aplicado.");
+      
+      // Force leave queue after decline
+      await leaveQueue().catch(() => {});
     } catch (error: any) {
       toast.error(error.message || "Erro ao recusar");
     }
@@ -362,10 +383,15 @@ export function Dashboard() {
             <div className="flex justify-center">
               <Button
                 onClick={handleJoinQueue}
-                disabled={!selectedMode || !profile?.steamId}
+                disabled={!selectedMode || !profile?.steamId || hasCooldown}
                 className="h-20 px-16 text-2xl font-black uppercase tracking-wide bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-600/20"
               >
-                {!profile?.steamId ? (
+                {hasCooldown ? (
+                  <>
+                    <Clock className="w-6 h-6 mr-3" />
+                    Cooldown: {cooldownRemaining}s
+                  </>
+                ) : !profile?.steamId ? (
                   <>
                     <Lock className="w-6 h-6 mr-3" />
                     Vincula Steam Primeiro
