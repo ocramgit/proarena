@@ -22,6 +22,7 @@ export const getMyActiveMatch = query({
       .query("matches")
       .filter((q) =>
         q.or(
+          q.eq(q.field("state"), "CONFIRMING"),
           q.eq(q.field("state"), "VETO"),
           q.eq(q.field("state"), "CONFIGURING"),
           q.eq(q.field("state"), "WARMUP"),
@@ -68,13 +69,16 @@ export const getMatchById = query({
         const isCurrentUser = currentUserId && userId === currentUserId;
         const isFake = user.clerkId.startsWith("fake_");
         
+        // Use steamName if available, otherwise use clerkId
+        const displayName = user.steamName || user.clerkId.substring(0, 10);
+        
         return {
           ...user,
           displayName: isCurrentUser 
-            ? "TU" 
+            ? displayName + " (TU)" 
             : isFake 
-            ? user.clerkId.replace("fake_", "Bot").substring(0, 15)
-            : user.clerkId.substring(0, 10),
+            ? user.clerkId.replace("fake_", "Bot ").substring(0, 15)
+            : displayName,
           isCurrentUser,
         };
       })
@@ -88,13 +92,16 @@ export const getMatchById = query({
         const isCurrentUser = currentUserId && userId === currentUserId;
         const isFake = user.clerkId.startsWith("fake_");
         
+        // Use steamName if available, otherwise use clerkId
+        const displayName = user.steamName || user.clerkId.substring(0, 10);
+        
         return {
           ...user,
           displayName: isCurrentUser 
-            ? "TU" 
+            ? displayName + " (TU)" 
             : isFake 
-            ? user.clerkId.replace("fake_", "Bot").substring(0, 15)
-            : user.clerkId.substring(0, 10),
+            ? user.clerkId.replace("fake_", "Bot ").substring(0, 15)
+            : displayName,
           isCurrentUser,
         };
       })

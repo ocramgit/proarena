@@ -41,14 +41,33 @@ export const joinQueue = mutation({
       .first();
 
     if (existingQueueEntry) {
+      // Check if has active cooldown
+      if (existingQueueEntry.cooldownUntil && Number(existingQueueEntry.cooldownUntil) > Date.now()) {
+        const remainingSeconds = Math.ceil((Number(existingQueueEntry.cooldownUntil) - Date.now()) / 1000);
+        throw new Error(`Tens um cooldown ativo. Aguarda ${remainingSeconds} segundos.`);
+      }
       return existingQueueEntry._id;
     }
 
-    // Check if already in active match
+    // Check for cooldown in any existing queue entry
+    const allUserQueueEntries = await ctx.db
+      .query("queue_entries")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    for (const entry of allUserQueueEntries) {
+      if (entry.cooldownUntil && Number(entry.cooldownUntil) > Date.now()) {
+        const remainingSeconds = Math.ceil((Number(entry.cooldownUntil) - Date.now()) / 1000);
+        throw new Error(`Tens um cooldown ativo. Aguarda ${remainingSeconds} segundos.`);
+      }
+    }
+
+    // Check if already in active match (including CONFIRMING)
     const activeMatch = await ctx.db
       .query("matches")
       .filter((q) =>
         q.or(
+          q.eq(q.field("state"), "CONFIRMING"),
           q.eq(q.field("state"), "VETO"),
           q.eq(q.field("state"), "CONFIGURING"),
           q.eq(q.field("state"), "WARMUP"),

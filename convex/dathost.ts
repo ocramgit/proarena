@@ -118,6 +118,19 @@ export const createDatHostMatch = action({
       // PHASE 11 SPECIAL: Configure 1v1 settings
       console.log("⚙️ Configuring 1v1 server settings...");
       
+      // AUTO-ASSIGN TEAMS: Team A = CT, Team B = T
+      const teamAssignCommands = [];
+      
+      // Assign Team A players to CT (team 3)
+      for (const steamId of teamA_steam64) {
+        teamAssignCommands.push(`sm_team "#${steamId}" 3`); // 3 = CT
+      }
+      
+      // Assign Team B players to T (team 2)
+      for (const steamId of teamB_steam64) {
+        teamAssignCommands.push(`sm_team "#${steamId}" 2`); // 2 = T
+      }
+      
       const commands = [
         "mp_warmuptime 9999", // Infinite warmup until all players connect
         "mp_maxrounds 30", // MR15 = 30 rounds max
@@ -127,6 +140,9 @@ export const createDatHostMatch = action({
         "mp_overtime_maxrounds 6", // MR3 overtime
         "sv_alltalk 0", // No all-talk
         "mp_match_restart_delay 5", // Quick restart
+        "mp_autoteambalance 0", // Disable auto team balance
+        "mp_limitteams 0", // No team limits
+        ...teamAssignCommands, // Auto-assign teams
       ];
       
       for (const command of commands) {
