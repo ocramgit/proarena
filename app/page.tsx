@@ -11,8 +11,9 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
+import { Suspense } from "react"
 
-export default function Home() {
+function HomePageContent() {
   useStoreUserEffect()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -54,5 +55,13 @@ export default function Home() {
         />
       </SignedIn>
     </>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center"><div className="text-zinc-400">A carregar...</div></div>}>
+      <HomePageContent />
+    </Suspense>
   )
 }
