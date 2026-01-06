@@ -21,13 +21,12 @@ export default function AdminLayout({
   const router = useRouter()
   const pathname = usePathname()
   const staffRole = useQuery(api.staff.getMyStaffRole)
-  const isAdmin = useQuery(api.admin.isAdmin)
 
   useEffect(() => {
-    if (staffRole === undefined || isAdmin === undefined) return
+    if (staffRole === undefined) return
 
     // Not staff at all - kick to home
-    if (!staffRole && !isAdmin) {
+    if (!staffRole) {
       router.push("/")
       return
     }
@@ -41,10 +40,10 @@ export default function AdminLayout({
         router.push("/admin/tickets")
       }
     }
-  }, [staffRole, isAdmin, pathname, router])
+  }, [staffRole, pathname, router])
 
   // Loading state
-  if (staffRole === undefined || isAdmin === undefined) {
+  if (staffRole === undefined) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
@@ -53,7 +52,7 @@ export default function AdminLayout({
   }
 
   // Not authorized
-  if (!staffRole && !isAdmin) {
+  if (!staffRole) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-md text-center">

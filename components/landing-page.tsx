@@ -92,6 +92,36 @@ export function LandingPage() {
                 </Button>
               </SignInButton>
             </div>
+
+            {/* Social Links - Discreto */}
+            <div className="mt-16 flex justify-center gap-4 opacity-40 hover:opacity-100 transition-opacity">
+              <a 
+                href="https://twitter.com/proarena" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+              >
+                Twitter
+              </a>
+              <span className="text-zinc-700">•</span>
+              <a 
+                href="https://discord.gg/proarena" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+              >
+                Discord
+              </a>
+              <span className="text-zinc-700">•</span>
+              <a 
+                href="https://instagram.com/proarena" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+              >
+                Instagram
+              </a>
+            </div>
           </div>
         </div>
       </div>

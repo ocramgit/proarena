@@ -46,7 +46,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
       <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-2xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
@@ -128,6 +128,36 @@ export default function OnboardingPage() {
           Ao vincular, concordas com os nossos Termos de Serviço e Política de Privacidade
         </p>
       </Card>
+
+      {/* Social Links - Discreto */}
+      <div className="mt-8 flex gap-4 opacity-40 hover:opacity-100 transition-opacity">
+        <a 
+          href="https://twitter.com/proarena" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+        >
+          Twitter
+        </a>
+        <span className="text-zinc-700">•</span>
+        <a 
+          href="https://discord.gg/proarena" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+        >
+          Discord
+        </a>
+        <span className="text-zinc-700">•</span>
+        <a 
+          href="https://instagram.com/proarena" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
+        >
+          Instagram
+        </a>
+      </div>
     </div>
   )
 }

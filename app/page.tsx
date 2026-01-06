@@ -27,8 +27,10 @@ function HomePageContent() {
     }
   }, [currentUser, router])
 
-  // Show nickname modal if Steam just linked and no nickname set
+  // ALWAYS show nickname modal if user has Steam but no nickname
   useEffect(() => {
+    if (currentUser === undefined) return // Still loading
+    
     if (currentUser && currentUser.steamId && !currentUser.nickname) {
       setShowNicknameModal(true)
     }
