@@ -105,7 +105,7 @@ export default function AdminTicketsPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="text-xl">{CATEGORY_LABELS[ticket.category].split(" ")[0]}</span>
+                  <span className="text-xl">{CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS]?.split(" ")[0]}</span>
                   <h3 className="text-lg font-bold text-zinc-100 truncate">{ticket.subject}</h3>
                   {ticket.priority !== "LOW" && (
                     <div className={`px-2 py-1 rounded text-xs font-bold uppercase ${
@@ -113,14 +113,14 @@ export default function AdminTicketsPage() {
                         ? "bg-red-500/10 text-red-500" 
                         : "bg-yellow-500/10 text-yellow-500"
                     }`}>
-                      {PRIORITY_CONFIG[ticket.priority].label}
+                      {PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG].label}
                     </div>
                   )}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-zinc-400">
                   <span>👤 {ticket.userName}</span>
                   <span>•</span>
-                  <span>{CATEGORY_LABELS[ticket.category]}</span>
+                  <span>{CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS]}</span>
                   <span>•</span>
                   <span>💬 {ticket.messageCount} mensagens</span>
                   <span>•</span>
@@ -244,7 +244,7 @@ export default function AdminTicketsPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)}>
+        <Tabs defaultValue={activeTab}>
           <TabsList className="bg-zinc-900/50 border border-zinc-800 mb-6">
             <TabsTrigger value="open" className="relative">
               Abertos
