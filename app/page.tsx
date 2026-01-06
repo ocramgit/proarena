@@ -22,8 +22,13 @@ function HomePageContent() {
 
   // Redirect to onboarding if user doesn't have Steam linked
   useEffect(() => {
+    if (currentUser === undefined) return // Still loading
+    
     if (currentUser && !currentUser.steamId) {
+      console.log("⚠️ User has no steamId, redirecting to onboarding:", currentUser._id)
       router.push("/onboarding")
+    } else if (currentUser && currentUser.steamId) {
+      console.log("✅ User has steamId:", currentUser.steamId, "nickname:", currentUser.nickname)
     }
   }, [currentUser, router])
 

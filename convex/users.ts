@@ -10,12 +10,15 @@ export const storeUser = mutation({
     email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    console.log("📝 storeUser called for:", args.email, "clerkId:", args.clerkId);
+    
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
     if (existingUser) {
+      console.log("✅ User already exists:", existingUser._id);
       return existingUser._id;
     }
 
@@ -33,9 +36,7 @@ export const storeUser = mutation({
       isPremium: false,
     });
 
-    if (isAdmin) {
-      console.log("👑 Admin user created:", args.email);
-    }
+    console.log(`✅ New user created: ${args.email} (${isAdmin ? 'ADMIN' : 'USER'}) - ID: ${userId}`);
 
     return userId;
   },
@@ -279,6 +280,7 @@ export const linkSteamAccount = mutation({
   },
   handler: async (ctx, args) => {
     console.log("🔗 Linking Steam account for Clerk ID:", args.clerkId);
+    console.log("🎮 Steam data:", { steamId: args.steamId, steamName: args.steamName });
 
     // Find user by Clerk ID
     const user = await ctx.db
@@ -287,8 +289,11 @@ export const linkSteamAccount = mutation({
       .first();
 
     if (!user) {
-      throw new Error("User not found");
+      console.error("❌ User not found in database for clerkId:", args.clerkId);
+      throw new Error("User not found - please refresh the page and try again");
     }
+
+    console.log("✅ User found:", user._id, "Current steamId:", user.steamId, "nickname:", user.nickname);
 
     // Check if Steam ID is already linked to another account
     const existingSteamUser = await ctx.db
@@ -309,6 +314,7 @@ export const linkSteamAccount = mutation({
     });
 
     console.log("✅ Steam account linked successfully:", args.steamName);
+    console.log("📊 Updated user data - steamId:", args.steamId, "nickname:", user.nickname);
 
     // Trigger Steam data update (hours, trust, etc.)
     await ctx.scheduler.runAfter(0, internal.steamApi.updateSteamData, {
