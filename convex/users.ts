@@ -25,6 +25,7 @@ export const storeUser = mutation({
     const userId = await ctx.db.insert("users", {
       clerkId: args.clerkId,
       steamId: "",
+      nickname: undefined, // Force nickname to be undefined for new users
       role: isAdmin ? "ADMIN" : "USER",
       elo_1v1: 1000,
       elo_5v5: 1000,

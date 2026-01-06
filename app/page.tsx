@@ -49,18 +49,20 @@ function HomePageContent() {
       <SignedIn>
         {/* Block everything until nickname is set */}
         {currentUser && currentUser.steamId && !currentUser.nickname ? (
-          <NicknameSetupModal
-            isOpen={true}
-            onComplete={handleNicknameComplete}
-            suggestedNickname={currentUser?.steamName?.replace(/\s+/g, "_").substring(0, 20)}
-          />
-        ) : (
+          <div className="min-h-screen bg-zinc-950">
+            <NicknameSetupModal
+              isOpen={true}
+              onComplete={handleNicknameComplete}
+              suggestedNickname={currentUser?.steamName?.replace(/\s+/g, "_").substring(0, 20)}
+            />
+          </div>
+        ) : currentUser && currentUser.steamId ? (
           <>
             <Dashboard />
             <MatchmakingBar />
             <MatchReadyModal />
           </>
-        )}
+        ) : null}
       </SignedIn>
     </>
   )
