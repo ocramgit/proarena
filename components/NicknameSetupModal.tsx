@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react"
@@ -86,15 +85,17 @@ export function NicknameSetupModal({ isOpen, onComplete, suggestedNickname }: Ni
     return null
   }
 
+  if (!isOpen) return null
+
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-black text-white">Escolhe o teu Nickname</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex items-center justify-center p-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg max-w-md w-full p-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-black text-white mb-2">Escolhe o teu Nickname</h2>
+          <p className="text-zinc-400 text-sm">
             Este será o teu @username na ProArena. Escolhe com cuidado!
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
 
         <div className="space-y-4 py-4">
           {/* Info box */}
@@ -157,7 +158,7 @@ export function NicknameSetupModal({ isOpen, onComplete, suggestedNickname }: Ni
             )}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }

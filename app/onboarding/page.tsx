@@ -48,20 +48,6 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
       <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-600">
-              <Gamepad2 className="h-10 w-10 text-white" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-black text-white mb-2 uppercase">
-            Bem-vindo à ProArena
-          </h1>
-          <p className="text-zinc-400 text-lg">
-            Para começar a competir, precisas de vincular a tua conta Steam
-          </p>
-        </div>
 
         {/* Steps */}
         <div className="space-y-4 mb-8">

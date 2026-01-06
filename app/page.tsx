@@ -47,14 +47,20 @@ function HomePageContent() {
         <LandingPage />
       </SignedOut>
       <SignedIn>
-        <Dashboard />
-        <MatchmakingBar />
-        <MatchReadyModal />
-        <NicknameSetupModal
-          isOpen={showNicknameModal}
-          onComplete={handleNicknameComplete}
-          suggestedNickname={currentUser?.steamName?.replace(/\s+/g, "_").substring(0, 20)}
-        />
+        {/* Block everything until nickname is set */}
+        {currentUser && currentUser.steamId && !currentUser.nickname ? (
+          <NicknameSetupModal
+            isOpen={true}
+            onComplete={handleNicknameComplete}
+            suggestedNickname={currentUser?.steamName?.replace(/\s+/g, "_").substring(0, 20)}
+          />
+        ) : (
+          <>
+            <Dashboard />
+            <MatchmakingBar />
+            <MatchReadyModal />
+          </>
+        )}
       </SignedIn>
     </>
   )
