@@ -88,7 +88,7 @@ export function NicknameSetupModal({ isOpen, onComplete, suggestedNickname }: Ni
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black text-white">Escolhe o teu Nickname</DialogTitle>
           <DialogDescription className="text-zinc-400">

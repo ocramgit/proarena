@@ -466,19 +466,14 @@ export default function AdminDashboard() {
                     onChange={(e) => setTeamEmail(e.target.value)}
                     className="flex-1 bg-zinc-800 border-zinc-700 text-zinc-100"
                   />
-                  <Select value={teamRole} onValueChange={(val: any) => setTeamRole(val)}>
-                    <SelectTrigger className="w-48 bg-zinc-800 border-zinc-700 text-zinc-100">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-800 border-zinc-700">
-                      <SelectItem value="ADMIN" className="text-zinc-100">
-                        🔴 Admin
-                      </SelectItem>
-                      <SelectItem value="SUPPORT" className="text-zinc-100">
-                        🔵 Support
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <select 
+                    value={teamRole} 
+                    onChange={(e) => setTeamRole(e.target.value as "ADMIN" | "SUPPORT")}
+                    className="w-48 bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-md px-3 py-2"
+                  >
+                    <option value="ADMIN">🔴 Admin</option>
+                    <option value="SUPPORT">🔵 Support</option>
+                  </select>
                   <Button
                     onClick={async () => {
                       if (!teamEmail || !teamEmail.includes('@')) {
