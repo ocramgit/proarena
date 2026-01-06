@@ -1,14 +1,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
   Users, Copy, CheckCircle2, XCircle, Clock, 
-  Shield, Swords, MapPin, Server, AlertCircle, Phone
+  Shield, Swords, MapPin, Server, AlertCircle, Phone,
+  Loader2, Zap, X, Trophy, Crosshair, Award, Target, Flame
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -47,9 +48,12 @@ export default function LobbyV6() {
   const provisionServer = useAction(api.lobbyDatHost.provisionDatHostServer);
   const autoBanLocationForBots = useMutation(api.lobbyAuto.autoBanLocationForBots);
   const autoBanForBots = useMutation(api.lobbyAuto.autoBanForBots);
+  const callAdmin = useMutation(api.lobbyAlerts.callAdmin);
 
   const [copied, setCopied] = useState(false);
   const [isProvisioning, setIsProvisioning] = useState(false);
+  const [showCallAdminDialog, setShowCallAdminDialog] = useState(false);
+  const [adminReason, setAdminReason] = useState("");
 
   // Auto-provision server when map is selected
   useEffect(() => {
