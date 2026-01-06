@@ -98,7 +98,7 @@ export default function TicketDetailPage() {
     <div className="flex h-screen bg-zinc-950">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col">
-      {/* Header */}
+        {/* Header */}
       <div className="border-b border-zinc-800 bg-zinc-900/50 p-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -226,7 +226,6 @@ export default function TicketDetailPage() {
         </div>
       )}
       </div>
-      </div>
     </div>
-  );
+  )
 }
