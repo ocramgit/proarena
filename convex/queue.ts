@@ -26,12 +26,26 @@ export const joinQueue = mutation({
       throw new Error("User not found");
     }
 
+    // FASE 30: Trust Factor Gatekeeping
     if (user.isBanned) {
-      throw new Error("You are banned from playing");
+      throw new Error("Conta banida. Contacta o suporte.");
     }
 
     if (!user.steamId || user.steamId === "") {
       throw new Error("Steam ID required. Please add it in your profile.");
+    }
+
+    // Check VAC bans
+    if ((user.vacBans || 0) > 0) {
+      throw new Error("Contas com VAC ban não podem jogar.");
+    }
+
+    // Minimum hours check removed - no longer required
+
+    // Check trust score
+    const trustScore = user.trustScore || 1000;
+    if (trustScore < 500) {
+      throw new Error("Trust Factor muito baixo. Contacta o suporte.");
     }
 
     // Check if already in queue
@@ -86,9 +100,10 @@ export const joinQueue = mutation({
     }
 
     // Solo 1v1 queue
+    // Join queue
     const queueId = await ctx.db.insert("queue_entries", {
       userId: user._id,
-      mode: "1v1",
+      mode: args.mode,
       joinedAt: BigInt(Date.now()),
     });
 

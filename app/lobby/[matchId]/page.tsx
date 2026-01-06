@@ -1,17 +1,25 @@
 "use client";
 
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { 
-  Trophy, Copy, Loader2, X, Target, 
-  TrendingUp, MapPin, Flame, Shield, Award,
-  Zap, Clock, ChevronRight, Activity
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { 
+  Users, Copy, CheckCircle2, XCircle, Clock, 
+  Shield, Swords, MapPin, Server, AlertCircle, Phone
+} from "lucide-react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const MAP_IMAGES: Record<string, string> = {
   aim_map: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
@@ -168,6 +176,25 @@ export default function LobbyV6() {
     }
   };
 
+  const handleCallAdmin = async () => {
+    if (!adminReason.trim()) {
+      toast.error("Descreve o motivo para chamar o admin");
+      return;
+    }
+
+    try {
+      await callAdmin({
+        matchId,
+        reason: adminReason,
+      });
+      toast.success("Admin notificado! Aguarda assistência.");
+      setShowCallAdminDialog(false);
+      setAdminReason("");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao chamar admin");
+    }
+  };
+
   // Calculate veto progress
   const totalLocationBans = locationPool.length - 1;
   const totalMapBans = mapPool.length - 1;
@@ -176,15 +203,30 @@ export default function LobbyV6() {
   const overallProgress = selectedLocation ? (selectedMap ? 100 : 50 + (mapProgress / 2)) : (locationProgress / 2);
 
   return (
+    <>
     <div className="h-screen w-full overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex">
         
         {/* LEFT - Player A Stats */}
         <div className="w-80 bg-zinc-900/30 backdrop-blur-sm border-r border-zinc-800 overflow-hidden">
-          <EnhancedPlayerStats player={playerA} isCurrentUser={isPlayerA} side="A" />
+          <EnhancedPlayerStats player={playerA} isCurrentUser={isPlayerA} side="A" match={match} />
         </div>
 
         {/* CENTER - Veto Arena */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* FASE 32: Call Admin Button Header */}
+          {(match.state === "VETO" || match.state === "WARMUP" || match.state === "LIVE") && (
+            <div className="p-4 border-b border-zinc-800 flex justify-end">
+              <Button
+                onClick={() => setShowCallAdminDialog(true)}
+                variant="outline"
+                className="border-red-600 text-red-600 hover:bg-red-600/10"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                Chamar Admin
+              </Button>
+            </div>
+          )}
+          
           <div className="flex-1 overflow-hidden p-6 flex items-center justify-center">
             
             {/* STAGE 1: Location Veto */}
@@ -370,9 +412,65 @@ export default function LobbyV6() {
 
         {/* RIGHT - Player B Stats */}
         <div className="w-80 bg-zinc-900/30 backdrop-blur-sm border-l border-zinc-800 overflow-hidden">
-          <EnhancedPlayerStats player={playerB} isCurrentUser={isPlayerB} side="B" />
+          <EnhancedPlayerStats player={playerB} isCurrentUser={isPlayerB} side="B" match={match} />
         </div>
     </div>
+
+    {/* FASE 32: Call Admin Dialog */}
+    <Dialog open={showCallAdminDialog} onOpenChange={setShowCallAdminDialog}>
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-black flex items-center gap-2">
+            <Phone className="w-6 h-6 text-red-500" />
+            Chamar Admin
+          </DialogTitle>
+          <DialogDescription className="text-zinc-400">
+            Descreve o problema que estás a enfrentar. Um admin será notificado imediatamente.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-zinc-300 mb-2 block">
+              Motivo / Descrição do Problema
+            </label>
+            <Textarea
+              value={adminReason}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdminReason(e.target.value)}
+              placeholder="Ex: Adversário não está a conectar ao servidor, servidor com lag, etc..."
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 min-h-[120px]"
+              maxLength={500}
+            />
+            <div className="text-xs text-zinc-500 mt-1">{adminReason.length}/500</div>
+          </div>
+
+          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <p className="text-sm text-yellow-500">
+              ⚠️ Usa esta função apenas para problemas urgentes. Abuso pode resultar em penalizações.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowCallAdminDialog(false)}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCallAdmin}
+              className="flex-1 bg-red-600 hover:bg-red-500"
+              disabled={!adminReason.trim()}
+            >
+              <Phone className="w-4 h-4 mr-2" />
+              Chamar Admin
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -380,11 +478,13 @@ export default function LobbyV6() {
 function EnhancedPlayerStats({ 
   player, 
   isCurrentUser, 
-  side 
+  side,
+  match
 }: { 
   player: any; 
   isCurrentUser: boolean;
   side: "A" | "B";
+  match?: any;
 }) {
   if (!player) {
     return (
@@ -404,6 +504,11 @@ function EnhancedPlayerStats({
   // Calculate level based on ELO
   const level = Math.floor((elo - 1000) / 100) + 1;
   const levelProgress = ((elo - 1000) % 100);
+  
+  // FASE 22: Check if player is CT or T
+  const isCT = match?.startingSideCt === player._id;
+  const isT = match?.startingSideT === player._id;
+  const hasSideAssignment = isCT || isT;
 
   return (
     <div className="p-6 space-y-6">
@@ -411,6 +516,18 @@ function EnhancedPlayerStats({
       {/* Player Header */}
       <div className="text-center">
         <div className="relative inline-block mb-4">
+          {/* FASE 22: CT/T Side Badge */}
+          {hasSideAssignment && (
+            <div className={`absolute -top-2 -right-2 z-10 w-12 h-12 rounded-full flex items-center justify-center ${
+              isCT ? 'bg-blue-500 shadow-lg shadow-blue-500/50' : 'bg-orange-500 shadow-lg shadow-orange-500/50'
+            }`}>
+              {isCT ? (
+                <Shield className="w-6 h-6 text-white" />
+              ) : (
+                <Crosshair className="w-6 h-6 text-white" />
+              )}
+            </div>
+          )}
           <div className={`w-32 h-32 rounded-2xl border-4 ${isCurrentUser ? 'border-orange-500 shadow-lg shadow-orange-500/30' : 'border-zinc-700'} bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center overflow-hidden`}>
             {player.steamAvatar || player.avatarUrl ? (
               <img src={player.steamAvatar || player.avatarUrl} alt={player.displayName} className="w-full h-full object-cover" />

@@ -32,26 +32,20 @@ export const handlePlayerConnect = internalMutation({
     
     // If still not found, try alternate formats
     if (!user) {
-      console.log("🔄 Trying alternate Steam ID formats...");
-      
       const alternateSteamId = args.steamId.startsWith("STEAM_") 
         ? steamIdToSteamId64(args.steamId)
         : steamId64ToSteamId(normalizedSteamId);
-      
-      console.log("🔍 Trying alternate format:", alternateSteamId);
       
       user = await ctx.db
         .query("users")
         .filter((q) => q.eq(q.field("steamId"), alternateSteamId))
         .first();
     }
-    
+      
     if (!user) {
-      console.log("⚠️ User not found for Steam ID:", args.steamId);
+      console.error("❌ [PLAYER CONNECT] User not found:", normalizedSteamId);
       return;
     }
-    
-    console.log("✅ Found user:", user._id, user.clerkId);
     
     // Find active match for this user
     const matches = await ctx.db
@@ -71,6 +65,10 @@ export const handlePlayerConnect = internalMutation({
         
         if (existingStat) {
           await ctx.db.patch(existingStat._id, { connected: true });
+          
+          const now = new Date().toISOString();
+          console.log(`✅ [${now}] Player connected: ${args.playerName}`);
+          console.log(`📊 [PLAYER CONNECT] Match ID: ${match._id}, State: ${match.state}`);
         } else {
           await ctx.db.insert("player_stats", {
             matchId: match._id,
@@ -83,24 +81,13 @@ export const handlePlayerConnect = internalMutation({
           });
         }
         
-        console.log(`✅ [PLAYER CONNECT] ${args.playerName} connected to match ${match._id}`);
-        console.log(`📊 [PLAYER CONNECT] SteamID: ${normalizedSteamId}, User: ${user._id}`);
-        
         // ASSIGN TEAM IMMEDIATELY AFTER PLAYER CONNECTS
         if (match.dathostServerId) {
-          console.log(`👥 [TEAM ASSIGN] Assigning team for ${args.playerName}...`);
-          console.log(`📋 [TEAM ASSIGN DEBUG] User ID: ${user._id}`);
-          console.log(`📋 [TEAM ASSIGN DEBUG] Team A IDs:`, match.teamA);
-          console.log(`📋 [TEAM ASSIGN DEBUG] Team B IDs:`, match.teamB);
-          
           // Check which team the player is on
           const isTeamA = match.teamA.includes(user._id);
           const isTeamB = match.teamB.includes(user._id);
           
-          console.log(`📋 [TEAM ASSIGN DEBUG] isTeamA: ${isTeamA}, isTeamB: ${isTeamB}`);
-          
           if (isTeamA) {
-            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team A (CT) - SteamID: ${normalizedSteamId}`);
             await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
               dathostServerId: match.dathostServerId,
               steamId: normalizedSteamId,
@@ -108,7 +95,6 @@ export const handlePlayerConnect = internalMutation({
               playerName: args.playerName,
             });
           } else if (isTeamB) {
-            console.log(`📤 [TEAM ASSIGN] ${args.playerName} → Team B (T) - SteamID: ${normalizedSteamId}`);
             await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
               dathostServerId: match.dathostServerId,
               steamId: normalizedSteamId,
@@ -122,7 +108,6 @@ export const handlePlayerConnect = internalMutation({
         }
         
         // Check if all players are now connected
-        console.log("🔍 [PLAYER CONNECT] Checking if all players connected...");
         const allStats = await ctx.db
           .query("player_stats")
           .withIndex("by_match", (q) => q.eq("matchId", match._id))
@@ -131,17 +116,8 @@ export const handlePlayerConnect = internalMutation({
         const connectedCount = allStats.filter(s => s.connected).length;
         const expectedPlayers = match.mode === "1v1" ? 2 : 10;
         
-        console.log(`👥 [PLAYER CONNECT] Players connected: ${connectedCount}/${expectedPlayers}`);
-        console.log(`📋 [PLAYER CONNECT] All stats:`, allStats.map(s => ({
-          userId: s.userId,
-          connected: s.connected,
-        })));
-        
-        // Check if lobby is ready to start
-        console.log(`🎯 [PLAYER CONNECT] Triggering lobby ready check...`);
-        await ctx.scheduler.runAfter(0, internal.lobbyReady.checkLobbyReady, {
-          matchId: match._id,
-        });
+        console.log(`📊 [PLAYER CONNECT] Connected: ${connectedCount}/${expectedPlayers}`);
+        console.log(`ℹ️ [PLAYER CONNECT] Player connection logged. DatHost API will handle countdown trigger.`);
         
         break;
       }
@@ -157,8 +133,6 @@ export const handlePlayerKill = internalMutation({
     headshot: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    console.log("💀 Kill event:", args.killerSteamId, "killed", args.victimSteamId, "with", args.weapon, args.headshot ? "(HS)" : "");
-    
     // Normalize Steam IDs
     const normalizedKillerId = normalizeSteamId(args.killerSteamId);
     const normalizedVictimId = normalizeSteamId(args.victimSteamId);
@@ -204,8 +178,6 @@ export const handlePlayerKill = internalMutation({
       return;
     }
     
-    console.log("✅ Found LIVE match:", match._id);
-    
     // Update killer stats
     const killerStat = await ctx.db
       .query("player_stats")
@@ -224,7 +196,6 @@ export const handlePlayerKill = internalMutation({
         headshots: newHeadshots,
         headshotPercentage: hsPercentage,
       });
-      console.log(`✅ Updated killer stats: ${killer._id} - ${newKills} kills, ${newHeadshots} HS (${hsPercentage.toFixed(1)}%)`);
     } else {
       console.log("⚠️ Killer stat not found for user:", killer._id);
     }
@@ -241,7 +212,6 @@ export const handlePlayerKill = internalMutation({
       await ctx.db.patch(victimStat._id, {
         deaths: victimStat.deaths + 1,
       });
-      console.log(`✅ Updated victim stats: ${victim._id} now has ${victimStat.deaths + 1} deaths`);
     } else {
       console.log("⚠️ Victim stat not found for user:", victim._id);
     }
@@ -288,8 +258,6 @@ export const handleRoundEnd = internalMutation({
     score: v.float64(),
   },
   handler: async (ctx, args) => {
-    console.log("🏁 Round end event:", args.team, "score:", args.score);
-    
     const match = await ctx.db
       .query("matches")
       .filter((q) => q.eq(q.field("state"), "LIVE"))
@@ -299,10 +267,6 @@ export const handleRoundEnd = internalMutation({
       console.log("⚠️ No LIVE match found for round end event");
       return;
     }
-    
-    console.log("✅ Found LIVE match:", match._id);
-    console.log("📊 Current scores - Team A:", match.scoreTeamA, "Team B:", match.scoreTeamB);
-    console.log("🆔 DatHost Server ID:", match.dathostServerId);
     
     // Update score based on team
     let newScoreA = match.scoreTeamA || 0;
@@ -314,19 +278,16 @@ export const handleRoundEnd = internalMutation({
         scoreTeamA: newScoreA,
         currentRound: (match.currentRound || 0) + 1,
       });
-      console.log(`✅ Updated Team A (CT) score to ${newScoreA}, round ${(match.currentRound || 0) + 1}`);
     } else {
       newScoreB = args.score;
       await ctx.db.patch(match._id, {
         scoreTeamB: newScoreB,
         currentRound: (match.currentRound || 0) + 1,
       });
-      console.log(`✅ Updated Team B (T) score to ${newScoreB}, round ${(match.currentRound || 0) + 1}`);
     }
     
     // Check DatHost match status after each round
     if (match.dathostMatchId) {
-      console.log("🔍 Checking DatHost match status...");
       await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.checkDatHostMatchStatus, {
         matchId: match._id,
         dathostMatchId: match.dathostMatchId,
@@ -370,17 +331,6 @@ export const checkDatHostMatchStatus = internalAction({
 
       const matchData = await response.json();
       
-      // Log detailed match status every round
-      console.log("═══════════════════════════════════════");
-      console.log("📊 DATHOST MATCH STATUS");
-      console.log("Match ID:", args.dathostMatchId);
-      console.log("Finished:", matchData.finished);
-      console.log("Team 1 Score:", matchData.team1_stats?.score || 0);
-      console.log("Team 2 Score:", matchData.team2_stats?.score || 0);
-      console.log("Status:", matchData.status || "unknown");
-      console.log("Map:", matchData.map || "unknown");
-      console.log("═══════════════════════════════════════");
-
       // Check if match is finished
       if (matchData.finished === true) {
         console.log("🏁🏁🏁 MATCH IS FINISHED! 🏁🏁🏁");
@@ -428,8 +378,6 @@ export const handleGameStart = internalMutation({
       scoreTeamB: 0,
     });
     
-    console.log("✅ Game started - Match is now LIVE:", match._id);
-    
     // Start DatHost polling for live updates
     await ctx.scheduler.runAfter(0, internal.liveMatchPolling.startLiveMatchPolling, {
       matchId: match._id,
@@ -438,7 +386,9 @@ export const handleGameStart = internalMutation({
 });
 
 // Assign player to team via RCON command
-export const assignPlayerTeam = internalMutation({
+// NOTE: Team assignment disabled - requires CounterStrikeSharp plugin
+// CS2 vanilla servers will auto-assign teams in 1v1 competitive mode
+export const assignPlayerTeam = internalAction({
   args: {
     dathostServerId: v.string(),
     steamId: v.string(),
@@ -446,41 +396,10 @@ export const assignPlayerTeam = internalMutation({
     playerName: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log(`🎯 [TEAM ASSIGN RCON] Sending sm_team command for ${args.playerName}...`);
-    console.log(`📋 [TEAM ASSIGN RCON DEBUG] SteamID: ${args.steamId}, Team: ${args.team === 3 ? 'CT (3)' : 'T (2)'}`);
-    
-    const auth = Buffer.from(
-      `${process.env.DATHOST_EMAIL}:${process.env.DATHOST_PASSWORD}`
-    ).toString("base64");
-    
-    const command = `sm_team "#${args.steamId}" ${args.team}`;
-    console.log(`📤 [TEAM ASSIGN RCON] Exact command: ${command}`);
-    
-    try {
-      const response = await fetch(
-        `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ line: command }),
-        }
-      );
-      
-      if (!response.ok) {
-        console.error(`❌ [TEAM ASSIGN RCON] HTTP ${response.status}: ${response.statusText}`);
-      } else {
-        console.log(`✅ [TEAM ASSIGN RCON] Command sent successfully for ${args.playerName}`);
-      }
-    } catch (error: any) {
-      console.error(`❌ [TEAM ASSIGN RCON] Failed to assign team:`, error.message);
-    }
-    
-    // DON'T retry - infinite loop can cause issues
-    // The command should work on first try if SteamID is correct
-    console.log(`ℹ️ [TEAM ASSIGN RCON] Single attempt completed for ${args.playerName}`);
+    // Team assignment via css_team requires CounterStrikeSharp plugin
+    // Must be installed manually via DatHost Control Panel
+    // For now, CS2 handles team assignment automatically in competitive mode
+    console.log(`ℹ️ [TEAM ASSIGN] ${args.playerName} → ${args.team === 3 ? 'CT' : 'T'} (auto-assigned by CS2)`);
   },
 });
 

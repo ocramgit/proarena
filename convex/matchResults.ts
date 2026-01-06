@@ -70,7 +70,43 @@ export const processMatchResult = internalMutation({
     });
     console.log("✅ Match FINISHED, ELO updated");
 
-    // PHASE 12: Delete server IMMEDIATELY
+    // MEGA ATUALIZAÇÃO: Reward players with Soberanas
+    await ctx.scheduler.runAfter(0, internal.economy.rewardMatchWinner, {
+      winnerId: winningTeam[0],
+      loserId: losingTeam[0],
+      matchId: match._id,
+    });
+
+    // PRIORIDADE MÉDIA: Record server cost
+    await ctx.scheduler.runAfter(0, internal.serverCostTracking.recordServerCost, {
+      matchId: match._id,
+    });
+
+    // FASE 26: Increment matches played and check referral rewards
+    for (const userId of [...winningTeam, ...losingTeam]) {
+      const user = await ctx.db.get(userId);
+      if (user) {
+        const newMatchesPlayed = (user.matchesPlayed || 0) + 1;
+        await ctx.db.patch(userId, {
+          matchesPlayed: newMatchesPlayed,
+        });
+
+        // Check referral reward
+        await ctx.scheduler.runAfter(0, internal.referrals.checkReferralReward, {
+          userId,
+        });
+
+        // FASE 28: Check and award badges
+        await ctx.scheduler.runAfter(0, internal.badges.checkAndAwardBadges, {
+          userId,
+        });
+      }
+    }
+
+    // FASE 26: Advance tournament if this is a tournament match
+    // (Will be implemented when tournament matches are created)
+
+    // Delete server IMMEDIATELY
     console.log("🗑️ Scheduling IMMEDIATE server deletion");
     await ctx.scheduler.runAfter(0, internal.matchResults.cleanupServer, {
       matchId: match._id,

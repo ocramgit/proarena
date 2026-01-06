@@ -22,17 +22,13 @@ export const checkLobbyReady = internalMutation({
     const connectedPlayers = stats.filter(s => s.connected);
     const expectedPlayers = match.mode === "1v1" ? 2 : 10;
 
-    console.log(`🎮 Lobby Ready Check: ${connectedPlayers.length}/${expectedPlayers} players connected`);
-    console.log(`📊 Player stats details:`, stats.map(s => ({
-      userId: s.userId,
-      connected: s.connected,
-      kills: s.kills,
-      deaths: s.deaths
-    })));
-
     // ALL PLAYERS CONNECTED - READY TO START
     if (connectedPlayers.length === expectedPlayers) {
-      console.log("✅ ALL PLAYERS CONNECTED! Initiating countdown sequence...");
+      const now = new Date().toISOString();
+      console.log(`✅ [${now}] ALL PLAYERS CONNECTED! ${connectedPlayers.length}/${expectedPlayers}`);
+      console.log(`📋 [LOBBY READY] Match ID: ${args.matchId}`);
+      console.log(`📋 [LOBBY READY] DatHost Server ID: ${match.dathostServerId}`);
+      console.log(`📋 [LOBBY READY] Countdown started flag: ${match.countdownStarted}`);
 
       // PROTECTION: Check if countdown already started (prevent duplicate calls)
       if (match.countdownStarted) {
@@ -41,15 +37,19 @@ export const checkLobbyReady = internalMutation({
       }
 
       // Mark countdown as started to prevent duplicates
+      console.log("🔒 [LOBBY READY] Setting countdownStarted flag to TRUE");
       await ctx.db.patch(args.matchId, {
         countdownStarted: true,
       });
 
       // Schedule the countdown sequence
+      console.log("🚀 [LOBBY READY] Scheduling startCountdown NOW (runAfter 0ms)");
       await ctx.scheduler.runAfter(0, internal.lobbyReady.startCountdown, {
         matchId: args.matchId,
         dathostServerId: match.dathostServerId || "",
       });
+      
+      console.log("✅ [LOBBY READY] Countdown sequence initiated successfully!");
 
       return { ready: true, connectedCount: connectedPlayers.length };
     }
@@ -71,30 +71,40 @@ export const startCountdown = internalMutation({
       return;
     }
 
-    console.log("⏱️ Starting 5-second countdown for IMMEDIATE game start...");
+    const now = new Date().toISOString();
+    console.log(`⏱️ [${now}] START COUNTDOWN CALLED!`);
+    console.log(`📋 [START COUNTDOWN] Match ID: ${args.matchId}`);
+    console.log(`📋 [START COUNTDOWN] DatHost Server ID: ${args.dathostServerId}`);
 
-    // Step 1: Send RCON command to set warmup time to 5 seconds
-    await ctx.scheduler.runAfter(0, internal.lobbyReady.sendCountdownCommand, {
-      dathostServerId: args.dathostServerId,
-    });
-
-    // Step 2: After 5 seconds, transition to LIVE
-    await ctx.scheduler.runAfter(5000, internal.lobbyReady.transitionToLive, {
-      matchId: args.matchId,
-    });
-  },
-});
-
-// Send RCON command to DatHost to set mp_warmuptime 5
-export const sendCountdownCommand = internalMutation({
-  args: {
-    dathostServerId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    console.log("📡 Sending mp_warmuptime 5 command to DatHost...");
+    // Send commands to CS2 server
+    if (!args.dathostServerId) {
+      console.error("❌ [COUNTDOWN] No dathostServerId provided! Cannot send commands!");
+      return;
+    }
     
-    await ctx.scheduler.runAfter(0, internal.cs2Commands.sendWarmupCommand, {
+    console.log("📡 [START COUNTDOWN] Sending RCON commands to CS2 server...");
+
+    // 1. Send chat message - DISABLED (user request)
+    // await ctx.scheduler.runAfter(0, internal.cs2Commands.sendChatMessage, {
+    //   dathostServerId: args.dathostServerId,
+    //   message: "TODOS OS JOGADORES CONECTADOS. Jogo iniciando em 30 segundos...",
+    // });
+
+    // 2. Unlock warmup timer
+    await ctx.scheduler.runAfter(0, internal.cs2Commands.sendConsoleCommand, {
       dathostServerId: args.dathostServerId,
+      command: "mp_warmup_pausetimer 0",
+    });
+
+    // 3. Set warmup time to 10 seconds
+    await ctx.scheduler.runAfter(0, internal.cs2Commands.sendConsoleCommand, {
+      dathostServerId: args.dathostServerId,
+      command: "mp_warmuptime 10",
+    });
+
+    // 4. After 10 seconds, transition to LIVE state
+    await ctx.scheduler.runAfter(10000, internal.lobbyReady.transitionToLive, {
+      matchId: args.matchId,
     });
   },
 });
@@ -118,13 +128,30 @@ export const transitionToLive = internalMutation({
 
     console.log("🚀 Transitioning match to LIVE state!");
 
+    const startTime = Date.now();
     await ctx.db.patch(args.matchId, {
       state: "LIVE",
       currentRound: 0,
       scoreTeamA: 0,
       scoreTeamB: 0,
+      startTime: BigInt(startTime),
     });
 
     console.log("✅ Match is now LIVE:", args.matchId);
+    console.log("⏰ Match started at:", new Date(startTime).toISOString());
+    
+    // CRITICAL: Start live match polling immediately
+    await ctx.scheduler.runAfter(0, internal.liveMatchPolling.startLiveMatchPolling, {
+      matchId: args.matchId,
+    });
+    
+    // Send mp_restartgame 1 to start the game
+    if (match.dathostServerId) {
+      await ctx.scheduler.runAfter(0, internal.cs2Commands.sendRestartGameCommand, {
+        dathostServerId: match.dathostServerId,
+      });
+    } else {
+      console.error("❌ [GAME START] No dathostServerId - cannot start game!");
+    }
   },
 });

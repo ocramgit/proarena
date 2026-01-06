@@ -23,6 +23,14 @@ export default function LiveMatchPageVersus() {
   const [isWinner, setIsWinner] = useState(false);
   const [liveScores, setLiveScores] = useState<{ team1: number; team2: number } | null>(null);
   const [liveStats, setLiveStats] = useState<any>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Redirect to live page when match goes LIVE (removed countdown - was causing issues)
+  useEffect(() => {
+    if (match?.state === "LIVE") {
+      console.log("🎮 Match is LIVE - showing live page");
+    }
+  }, [match?.state]);
 
   // Poll DatHost API every 5 seconds while match is LIVE
   useEffect(() => {
@@ -100,6 +108,7 @@ export default function LiveMatchPageVersus() {
       </div>
     );
   }
+
 
   const playerA = match.teamAPlayers?.[0];
   const playerB = match.teamBPlayers?.[0];
@@ -191,6 +200,14 @@ export default function LiveMatchPageVersus() {
           <div className="text-center">
             <div className="text-sm uppercase tracking-wider text-zinc-500 mb-1">
               {match.state === "LIVE" ? "🔴 AO VIVO" : match.state === "WARMUP" ? "⏱️ AQUECIMENTO" : "✅ TERMINADO"}
+              {match.startTime && (
+                <span className="ml-3 text-zinc-600">
+                  • {new Date(Number(match.startTime)).toLocaleTimeString('pt-PT', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </span>
+              )}
             </div>
             <div className="text-lg font-bold text-zinc-100">
               {match.selectedMap?.replace(/_/g, " ").toUpperCase()} • {match.selectedLocation}

@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 export const sendWarmupCommand = internalAction({
   args: {
     dathostServerId: v.string(),
+    warmupTime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const username = process.env.DATHOST_USERNAME;
@@ -17,8 +18,13 @@ export const sendWarmupCommand = internalAction({
 
     const auth = btoa(`${username}:${password}`);
 
+    const warmupTime = args.warmupTime || 30;
+    
     try {
-      console.log("Sending mp_warmuptime 5 command to server:", args.dathostServerId);
+      const command = `mp_warmuptime ${warmupTime}`;
+      
+      const params = new URLSearchParams();
+      params.append('line', command);
       
       const response = await fetch(
         `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
@@ -26,24 +32,17 @@ export const sendWarmupCommand = internalAction({
           method: "POST",
           headers: {
             Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            line: "mp_warmuptime 5",
-          }),
+          body: params,
         }
       );
-
+      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to send warmup command:", response.status, response.statusText, errorText);
-      } else {
-        console.log("✅ Warmup time reduced to 10 seconds successfully!");
+        console.error("❌ [WARMUP CMD] Failed:", response.status, errorText);
         
-        // Schedule fallback to force LIVE state after 15 seconds (10s warmup + 5s buffer)
-        await ctx.scheduler.runAfter(15 * 1000, internal.cs2Commands.forceGameStart, {
-          dathostServerId: args.dathostServerId,
-        });
+        // NO FALLBACK NEEDED - transitionToLive is already scheduled in startCountdown
+        // The game will transition to LIVE via lobbyReady.transitionToLive after 5 seconds
       }
     } catch (error: any) {
       console.error("Error sending warmup command:", error.message);
@@ -51,14 +50,103 @@ export const sendWarmupCommand = internalAction({
   },
 });
 
-export const forceGameStart = internalAction({
+// Send chat message to all players
+export const sendChatMessage = internalAction({
+  args: {
+    dathostServerId: v.string(),
+    message: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const username = process.env.DATHOST_USERNAME;
+    const password = process.env.DATHOST_PASSWORD;
+
+    if (!username || !password) {
+      console.error("❌ [CHAT MSG] DatHost credentials not configured");
+      return;
+    }
+
+    const auth = btoa(`${username}:${password}`);
+
+    try {
+      const command = `say ${args.message}`;
+      
+      const params = new URLSearchParams();
+      params.append('line', command);
+      
+      const response = await fetch(
+        `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params,
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ [CHAT MSG] Failed:", response.status, errorText);
+      }
+    } catch (error: any) {
+      console.error("❌ [CHAT MSG] Error:", error.message);
+    }
+  },
+});
+
+// Generic console command sender (FASE 20: Native CS2 commands only)
+export const sendConsoleCommand = internalAction({
+  args: {
+    dathostServerId: v.string(),
+    command: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const username = process.env.DATHOST_USERNAME;
+    const password = process.env.DATHOST_PASSWORD;
+
+    if (!username || !password) {
+      console.error("❌ [CONSOLE CMD] DatHost credentials not configured");
+      return;
+    }
+
+    const auth = btoa(`${username}:${password}`);
+
+    try {
+      const params = new URLSearchParams();
+      params.append('line', args.command);
+      
+      const response = await fetch(
+        `https://dathost.net/api/0.1/game-servers/${args.dathostServerId}/console`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params,
+        }
+      );
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ [CONSOLE CMD] Failed:", args.command, response.status, errorText);
+      }
+    } catch (error: any) {
+      console.error("❌ [CONSOLE CMD] Error:", error.message);
+    }
+  },
+});
+
+export const sendRestartGameCommand = internalAction({
   args: {
     dathostServerId: v.string(),
   },
   handler: async (ctx, args) => {
-    console.log("⏰ Fallback: Forcing game start after warmup timeout");
-    
-    // Call handleGameStart to transition to LIVE
-    await ctx.runMutation(internal.cs2LogHandlers.handleGameStart, {});
+    // Use generic console command sender
+    await ctx.runAction(internal.cs2Commands.sendConsoleCommand, {
+      dathostServerId: args.dathostServerId,
+      command: "mp_restartgame 1",
+    });
   },
 });

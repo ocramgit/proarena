@@ -38,85 +38,15 @@ export const checkMatchStatus = internalAction({
       return;
     }
     
-    // Debug: Log match details
-    console.log("🔍 Match details:", {
-      matchId: args.matchId,
-      dathostServerId: match.dathostServerId,
-      dathostMatchId: match.dathostMatchId,
-      serverIp: match.serverIp,
-      state: match.state
-    });
-    
-    // CRITICAL: Check DatHost API for player connections - THIS IS THE MAIN DETECTION METHOD
+    // MEGA ATUALIZAÇÃO: Fast-Track Sync via Status Object
     if (match.dathostMatchId) {
-      console.log("🔍 [CRITICAL] Calling DatHost CS2 Match API for player detection...");
       try {
-        const result = await ctx.runAction(internal.dathostStatus.checkServerStatus, {
+        await ctx.runAction(internal.matchSync.syncMatchStatus, {
           dathostMatchId: match.dathostMatchId,
           matchId: args.matchId,
         });
-        console.log("📡 [CRITICAL] DatHost API result:", JSON.stringify(result));
-        
-        // If DatHost detected players, the mutation will handle marking them as connected
-        if (result && result.playersOnline !== undefined && result.playersOnline > 0) {
-          console.log(`✅ [CRITICAL] DatHost detected ${result.playersOnline} players online`);
-        }
       } catch (error: any) {
-        console.error("❌ [CRITICAL] DatHost API call failed:", error.message);
-      }
-    } else {
-      console.log("⚠️ No dathostMatchId found for match:", args.matchId);
-      console.log("❌ CRITICAL: Cannot check DatHost API without match ID!");
-    }
-    
-    // Check if match should be LIVE based on time
-    const now = Date.now();
-    const warmupEndsAt = match.warmupEndsAt ? Number(match.warmupEndsAt) : 0;
-    
-    // If warmup time has passed, force transition to LIVE
-    if (warmupEndsAt > 0 && now >= warmupEndsAt) {
-      console.log("⏰ Warmup time expired, forcing transition to LIVE");
-      await ctx.runMutation(internal.cs2LogHandlers.handleGameStart, {});
-      return;
-    }
-    
-    // Check if all players are connected
-    const stats = await ctx.runQuery(internal.matchMonitor.getPlayerStats, {
-      matchId: args.matchId,
-    });
-    
-    const connectedCount = stats.filter((s: any) => s.connected).length;
-    const expectedPlayers = match.mode === "1v1" ? 2 : 10;
-    
-    console.log(`🔍 Monitor: ${connectedCount}/${expectedPlayers} players connected, state: ${match.state}`);
-    console.log("📊 Player stats:", JSON.stringify(stats.map((s: any) => ({
-      userId: s.userId,
-      connected: s.connected,
-      kills: s.kills,
-      deaths: s.deaths
-    }))));
-    
-    // If all players connected and warmup was reduced, check if enough time has passed
-    if (connectedCount === expectedPlayers) {
-      const timeSinceWarmupStart = now - Number(match.warmupEndsAt || 0) + (5 * 60 * 1000);
-      
-      // If more than 20 seconds since all players connected, force LIVE
-      if (timeSinceWarmupStart > 20000) {
-        console.log("⏰ All players connected and warmup timeout reached, forcing LIVE");
-        await ctx.runMutation(internal.cs2LogHandlers.handleGameStart, {});
-        return;
-      }
-    }
-    
-    // DISABLED: Fallback was causing false positives
-    // Only rely on DatHost API and CS2 logs for connection detection
-    if (stats.length === expectedPlayers && connectedCount === 0) {
-      const timeSinceWarmupStart = now - Number(match.warmupEndsAt || 0) + (5 * 60 * 1000);
-      
-      if (timeSinceWarmupStart > 30000) {
-        console.log(`⚠️ No connections detected after 30s. ${connectedCount}/${expectedPlayers} players connected.`);
-        console.log("ℹ️ Waiting for DatHost API or CS2 logs to confirm connections...");
-        // DO NOT auto-mark as connected - wait for real confirmation
+        console.error("❌ Fast-Track sync failed:", error.message);
       }
     }
     
@@ -148,13 +78,3 @@ export const getPlayerStats = internalQuery({
   },
 });
 
-export const markPlayerConnected = internalMutation({
-  args: {
-    statId: v.id("player_stats"),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.statId, {
-      connected: true,
-    });
-  },
-});

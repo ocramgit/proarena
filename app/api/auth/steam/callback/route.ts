@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
 
       console.log("✅ Steam account linked successfully");
 
-      // Redirect to profile with success message
+      // Redirect to home - nickname setup modal will show if needed
       return NextResponse.redirect(
-        new URL("/profile?steam_linked=true", request.url)
+        new URL("/?steam_linked=true", request.url)
       );
     } catch (error) {
       console.error("❌ Error linking Steam account to Convex:", error);

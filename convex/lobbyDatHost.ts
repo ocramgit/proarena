@@ -70,13 +70,31 @@ export const provisionDatHostServer = action({
     
     console.log("Selected server location:", serverLocation);
 
+    // FASE 22: Get CT/T assignments from coin flip
+    if (!match.startingSideCt || !match.startingSideT) {
+      throw new Error("CT/T sides not assigned - coin flip missing");
+    }
+
+    const ctPlayer = match.teamAPlayers.find((p: any) => p._id === match.startingSideCt) || 
+                     match.teamBPlayers.find((p: any) => p._id === match.startingSideCt);
+    const tPlayer = match.teamAPlayers.find((p: any) => p._id === match.startingSideT) || 
+                    match.teamBPlayers.find((p: any) => p._id === match.startingSideT);
+
+    if (!ctPlayer || !tPlayer) {
+      throw new Error("Could not find CT/T players");
+    }
+
+    console.log("🛡️ CT Player:", ctPlayer.steamId);
+    console.log("🎯 T Player:", tPlayer.steamId);
+
     try {
-      const dathostMatch = await ctx.runAction(api.dathost.createDatHostMatch, {
+      // MEGA ATUALIZAÇÃO: Use CORE 2.0 cs2-matches endpoint
+      const dathostMatch = await ctx.runAction(api.dathostCore.spawnServer, {
         matchId: args.matchId,
         map: match.selectedMap,
-        teamA_steamIds,
-        teamB_steamIds,
         location: serverLocation,
+        ctSteamId: ctPlayer.steamId,
+        tSteamId: tPlayer.steamId,
       });
 
       console.log("DatHost match created:", dathostMatch);
@@ -84,7 +102,7 @@ export const provisionDatHostServer = action({
       await ctx.runMutation(internal.lobbyDatHost.updateMatchWithDatHost, {
         matchId: args.matchId,
         dathostMatchId: dathostMatch.id,
-        dathostServerId: dathostMatch.serverId,
+        dathostServerId: dathostMatch.id, // FASE 22: cs2-matches uses same ID
         serverIp: dathostMatch.connect_string,
       });
       

@@ -59,9 +59,25 @@ export const banMap = mutation({
     );
 
     if (remainingMaps.length === 1) {
+      // MEGA ATUALIZAÇÃO: COIN FLIP - Randomize CT/T sides
+      const coinFlip = Math.random() < 0.5;
+      const playerA = match.teamA[0]; // First player in Team A
+      const playerB = match.teamB[0]; // First player in Team B
+      
+      const teamCtId = coinFlip ? playerA : playerB;
+      const teamTId = coinFlip ? playerB : playerA;
+      
+      console.log("🎲 COIN FLIP: CT side goes to", coinFlip ? "Team A" : "Team B");
+      console.log("🛡️ CT Player ID:", teamCtId);
+      console.log("🎯 T Player ID:", teamTId);
+      
       await ctx.db.patch(args.matchId, {
         bannedMaps: newBannedMaps,
         selectedMap: remainingMaps[0],
+        startingSideCt: teamCtId,
+        startingSideT: teamTId,
+        teamCtId,
+        teamTId,
         state: "CONFIGURING",
       });
 

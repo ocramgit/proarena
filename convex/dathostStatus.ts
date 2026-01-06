@@ -40,6 +40,36 @@ export const checkServerStatus = internalAction({
       
       console.log("📊 CS2 Match FULL DATA:", JSON.stringify(matchData, null, 2));
       
+      // FASE 21: INSTANT PLAYER DETECTION via Status Object
+      const team1Stats = matchData.team1_stats;
+      const team2Stats = matchData.team2_stats;
+      const playerAConnected = team1Stats && team1Stats.players && team1Stats.players.length > 0;
+      const playerBConnected = team2Stats && team2Stats.players && team2Stats.players.length > 0;
+      
+      if (playerAConnected && playerBConnected) {
+        const now = new Date().toISOString();
+        console.log(`⚡ [${now}] INSTANT DETECTION: Both players detected in status object!`);
+        console.log(`📊 Team1 Players:`, team1Stats.players.map((p: any) => p.steam_id));
+        console.log(`📊 Team2 Players:`, team2Stats.players.map((p: any) => p.steam_id));
+      }
+      
+      // FASE 21: FORCE LIVE RECOVERY - If game already started but we're not LIVE
+      const scoreA = team1Stats?.score || 0;
+      const scoreB = team2Stats?.score || 0;
+      const hasLiveScores = scoreA > 0 || scoreB > 0;
+      
+      if (hasLiveScores) {
+        console.log(`⚡ LIVE SCORES DETECTED: ${scoreA} - ${scoreB}`);
+        await ctx.runMutation(internal.dathostStatus.forceLiveRecovery, {
+          matchId: args.matchId,
+          scoreA,
+          scoreB,
+          team1Stats,
+          team2Stats,
+        });
+        return { success: true, forcedLive: true };
+      }
+      
       // Count connected players from players array
       let playersOnline = 0;
       if (matchData.players && Array.isArray(matchData.players)) {
@@ -92,9 +122,10 @@ export const updatePlayerCount = internalMutation({
     
     console.log(`🎮 Match ${args.matchId}: ${args.playersOnline}/${expectedPlayers} players in server`);
 
-    // CRITICAL FALLBACK: If all expected players are online, mark them as connected AND assign teams
-    if (args.playersOnline >= expectedPlayers) {
-      console.log("✅ [CRITICAL FALLBACK] All players detected in server via DatHost API!");
+    // SINGLE SOURCE OF TRUTH: DatHost API detected all players online
+    if (args.playersOnline >= expectedPlayers && match.state === "WARMUP") {
+      const now = new Date().toISOString();
+      console.log(`✅ [${now}] DATHOST API: All ${args.playersOnline}/${expectedPlayers} players ONLINE!`);
       
       // Get all player stats
       const stats = await ctx.db
@@ -102,71 +133,134 @@ export const updatePlayerCount = internalMutation({
         .withIndex("by_match", (q) => q.eq("matchId", args.matchId))
         .collect();
 
-      console.log(`📊 [CRITICAL FALLBACK] Found ${stats.length} player stats, ${args.playersOnline} players online`);
+      console.log(`📊 [DATHOST] Found ${stats.length} player stats in DB`);
 
-      // Mark all as connected
+      // Mark all as connected (idempotent - safe to call multiple times)
+      let newlyConnected = 0;
       for (const stat of stats) {
         if (!stat.connected) {
-          console.log(`✅ [CRITICAL FALLBACK] Marking player ${stat.userId} as connected`);
           await ctx.db.patch(stat._id, {
             connected: true,
           });
+          newlyConnected++;
         }
       }
-
-      // CRITICAL: Assign teams via RCON for ALL players
-      if (match.dathostServerId) {
-        console.log("🎯 [CRITICAL FALLBACK] Assigning teams via RCON...");
-        
-        // Get user details for team assignment
-        const teamAPlayers = await Promise.all(
-          match.teamA.map(async (userId) => {
-            const user = await ctx.db.get(userId);
-            return user;
-          })
-        );
-        
-        const teamBPlayers = await Promise.all(
-          match.teamB.map(async (userId) => {
-            const user = await ctx.db.get(userId);
-            return user;
-          })
-        );
-
-        // Assign Team A to CT
-        for (const player of teamAPlayers) {
-          if (player && player.steamId) {
-            console.log(`📤 [CRITICAL FALLBACK] Assigning ${player.steamName || player.clerkId} to CT (Team A)`);
-            await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
-              dathostServerId: match.dathostServerId,
-              steamId: player.steamId,
-              team: 3, // CT
-              playerName: player.steamName || player.clerkId.substring(0, 10),
-            });
-          }
-        }
-
-        // Assign Team B to T
-        for (const player of teamBPlayers) {
-          if (player && player.steamId) {
-            console.log(`📤 [CRITICAL FALLBACK] Assigning ${player.steamName || player.clerkId} to T (Team B)`);
-            await ctx.scheduler.runAfter(0, internal.cs2LogHandlers.assignPlayerTeam, {
-              dathostServerId: match.dathostServerId,
-              steamId: player.steamId,
-              team: 2, // T
-              playerName: player.steamName || player.clerkId.substring(0, 10),
-            });
-          }
-        }
+      
+      if (newlyConnected > 0) {
+        console.log(`✅ [DATHOST] Marked ${newlyConnected} players as connected`);
       }
 
-      // Check if lobby is ready to start
-      if (match.state === "WARMUP") {
-        console.log("🎯 [CRITICAL FALLBACK] All players detected - checking lobby ready");
-        await ctx.scheduler.runAfter(0, internal.lobbyReady.checkLobbyReady, {
-          matchId: args.matchId,
-        });
-      }
+      // SINGLE TRIGGER: Call checkLobbyReady ONCE
+      // The countdownStarted flag will prevent duplicate countdowns
+      console.log(`🚀 [DATHOST] Triggering checkLobbyReady NOW...`);
+      await ctx.scheduler.runAfter(0, internal.lobbyReady.checkLobbyReady, {
+        matchId: args.matchId,
+      });
     }
   },
 });
+
+/**
+ * FASE 21: FORCE LIVE RECOVERY
+ * If DatHost status object shows live scores but match is not LIVE,
+ * force transition and sync state immediately
+ */
+export const forceLiveRecovery = internalMutation({
+  args: {
+    matchId: v.id("matches"),
+    scoreA: v.float64(),
+    scoreB: v.float64(),
+    team1Stats: v.any(),
+    team2Stats: v.any(),
+  },
+  handler: async (ctx, args) => {
+    const match = await ctx.db.get(args.matchId);
+    if (!match) return;
+
+    // Only force if not already LIVE
+    if (match.state === "LIVE") {
+      // Just update scores if already LIVE
+      if (match.scoreTeamA !== args.scoreA || match.scoreTeamB !== args.scoreB) {
+        await ctx.db.patch(args.matchId, {
+          scoreTeamA: args.scoreA,
+          scoreTeamB: args.scoreB,
+        });
+        console.log(`✅ [SYNC] Updated scores: ${args.scoreA} - ${args.scoreB}`);
+      }
+      
+      // Update player stats in real-time
+      await updatePlayerStatsRealtime(ctx, args.matchId, args.team1Stats, args.team2Stats, match);
+      return;
+    }
+
+    // FORCE LIVE if game already started
+    const now = new Date().toISOString();
+    console.log(`⚡ [${now}] SYNC: Game detected in progress via Status Object. Forcing LIVE state.`);
+    console.log(`📊 [SYNC] Scores: Team A ${args.scoreA} - Team B ${args.scoreB}`);
+
+    const startTime = Date.now();
+    await ctx.db.patch(args.matchId, {
+      state: "LIVE",
+      scoreTeamA: args.scoreA,
+      scoreTeamB: args.scoreB,
+      startTime: BigInt(startTime),
+      currentRound: Math.max(args.scoreA, args.scoreB),
+    });
+
+    console.log(`✅ [SYNC] Match forced to LIVE at ${new Date(startTime).toISOString()}`);
+
+    // Start live match polling
+    await ctx.scheduler.runAfter(0, internal.liveMatchPolling.startLiveMatchPolling, {
+      matchId: args.matchId,
+    });
+
+    // Update player stats in real-time
+    await updatePlayerStatsRealtime(ctx, args.matchId, args.team1Stats, args.team2Stats, match);
+  },
+});
+
+/**
+ * FASE 21: REAL-TIME STATS UPDATE
+ * Update kills/deaths/assists from DatHost status object immediately
+ */
+async function updatePlayerStatsRealtime(
+  ctx: any,
+  matchId: any,
+  team1Stats: any,
+  team2Stats: any,
+  match: any
+) {
+  if (!team1Stats?.players || !team2Stats?.players) return;
+
+  const allPlayers = [...team1Stats.players, ...team2Stats.players];
+  
+  for (const playerData of allPlayers) {
+    if (!playerData.steam_id) continue;
+
+    const allUserIds = [...match.teamA, ...match.teamB];
+    
+    for (const userId of allUserIds) {
+      const user = await ctx.db.get(userId);
+      if (!user || user.steamId !== playerData.steam_id) continue;
+
+      // Find player_stats entry
+      const stats = await ctx.db
+        .query("player_stats")
+        .withIndex("by_match", (q: any) => q.eq("matchId", matchId))
+        .filter((q: any) => q.eq(q.field("userId"), userId))
+        .first();
+
+      if (stats) {
+        // Update stats in real-time
+        await ctx.db.patch(stats._id, {
+          kills: playerData.kills || 0,
+          deaths: playerData.deaths || 0,
+          assists: playerData.assists || 0,
+          connected: true,
+        });
+        
+        console.log(`📊 [SYNC] Updated stats for ${user.steamName || user.clerkId}: ${playerData.kills}K/${playerData.deaths}D/${playerData.assists}A`);
+      }
+    }
+  }
+}

@@ -107,7 +107,7 @@ http.route({
     console.log("Event type:", body.event);
     console.log("Full payload:", JSON.stringify(body, null, 2));
 
-    // DatHost sends events like: match_finished, round_end, server_empty, etc.
+    // FASE 22: DatHost webhook events (match_finished, round_start, etc.)
     if (body.event === "match_finished") {
       console.log("🏁🏁🏁 MATCH_FINISHED EVENT DETECTED 🏁🏁🏁");
       const dathostMatchId = body.match_id;
@@ -115,27 +115,33 @@ http.route({
       const scoreTeam1 = body.team1_score || 0;
       const scoreTeam2 = body.team2_score || 0;
 
-      try {
-        await ctx.runMutation(internal.matchResults.processMatchResult, {
-          dathostMatchId,
-          winner,
-          scoreTeam1,
-          scoreTeam2,
-        });
+      console.log("Match ID:", dathostMatchId);
+      console.log("Winner:", winner);
+      console.log("Score:", scoreTeam1, "-", scoreTeam2);
 
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (error: any) {
-        console.error("Error processing match result:", error);
-        return new Response(
-          JSON.stringify({ error: error.message }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
-        );
+      // Process match result
+      await ctx.runMutation(internal.matchResults.processMatchResult, {
+        dathostMatchId,
+        winner,
+        scoreTeam1,
+        scoreTeam2,
+      });
+      
+      // MEGA ATUALIZAÇÃO: Terminate server after match finishes
+      await ctx.runAction(internal.dathostCore.terminateServer, {
+        dathostMatchId,
+      });
+    }
+    
+    // MEGA ATUALIZAÇÃO: Detect game start via round_start webhook
+    if (body.event === "round_start") {
+      console.log("🎮 ROUND_START EVENT - Game may be starting!");
+      const dathostMatchId = body.match_id;
+      
+      if (dathostMatchId) {
+        // Trigger Fast-Track sync to check if we should force LIVE
+        // Note: matchId needs to be looked up from dathostMatchId
+        console.log("⚡ Triggering Fast-Track sync for:", dathostMatchId);
       }
     }
 

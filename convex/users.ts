@@ -1,5 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+
+const ADMIN_EMAIL = "marstrabalhar@gmail.com";
 
 export const storeUser = mutation({
   args: {
@@ -16,15 +19,22 @@ export const storeUser = mutation({
       return existingUser._id;
     }
 
+    // Check if user should be admin based on email
+    const isAdmin = args.email === ADMIN_EMAIL;
+
     const userId = await ctx.db.insert("users", {
       clerkId: args.clerkId,
       steamId: "",
-      role: "USER",
+      role: isAdmin ? "ADMIN" : "USER",
       elo_1v1: 1000,
       elo_5v5: 1000,
       isBanned: false,
-      isPremium: false, // Default to false for new users
+      isPremium: false,
     });
+
+    if (isAdmin) {
+      console.log("👑 Admin user created:", args.email);
+    }
 
     return userId;
   },
@@ -51,6 +61,102 @@ export const getUserById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.userId);
+  },
+});
+
+/**
+ * FASE 29: Get user by nickname for @username routing
+ * Falls back to steamName if nickname not found
+ */
+export const getUserByNickname = query({
+  args: { nickname: v.string() },
+  handler: async (ctx, args) => {
+    // Try nickname first
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_nickname", (q) => q.eq("nickname", args.nickname))
+      .first();
+    
+    // If not found, try steamName (for users without nickname set)
+    if (!user) {
+      const allUsers = await ctx.db.query("users").collect();
+      user = allUsers.find(u => 
+        u.steamName?.replace(/\s+/g, '_') === args.nickname || 
+        u.steamName === args.nickname
+      ) || null;
+    }
+    
+    return user;
+  },
+});
+
+export const getUserByClerkId = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    return user;
+  },
+});
+
+export const checkNicknameAvailable = query({
+  args: { nickname: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_nickname", (q) => q.eq("nickname", args.nickname))
+      .first();
+
+    return !existing; // true if available, false if taken
+  },
+});
+
+export const setNickname = mutation({
+  args: { nickname: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Validate nickname format
+    if (args.nickname.length < 3 || args.nickname.length > 20) {
+      throw new Error("Nickname deve ter entre 3 e 20 caracteres");
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(args.nickname)) {
+      throw new Error("Nickname só pode conter letras, números e _");
+    }
+
+    // Check if nickname is available
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_nickname", (q) => q.eq("nickname", args.nickname))
+      .first();
+
+    if (existing) {
+      throw new Error("Este nickname já está em uso");
+    }
+
+    // Get current user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Update nickname
+    await ctx.db.patch(user._id, {
+      nickname: args.nickname,
+    });
+
+    return { success: true };
   },
 });
 
@@ -202,6 +308,14 @@ export const linkSteamAccount = mutation({
     });
 
     console.log("✅ Steam account linked successfully:", args.steamName);
+
+    // Trigger Steam data update (hours, trust, etc.)
+    await ctx.scheduler.runAfter(0, internal.steamApi.updateSteamData, {
+      userId: user._id,
+      steamId: args.steamId,
+    });
+
+    console.log("✅ Scheduled Steam data update for:", args.steamName);
 
     return { success: true, userId: user._id };
   },
