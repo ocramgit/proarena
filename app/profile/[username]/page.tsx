@@ -1,16 +1,17 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import { LevelBadge20 } from "@/components/LevelBadge20";
 import { getProgressToNextLevel, getLevelFromElo } from "@/utils/levels20";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts";
-import { Trophy, Target, Shield, TrendingUp, TrendingDown, Award, UserPlus, Settings, Crosshair, Flame } from "lucide-react";
+import { Trophy, Target, Shield, TrendingUp, TrendingDown, Award, UserPlus, Settings, Crosshair, Flame, MessageCircle, UserCheck, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sidebar } from "@/components/layout/sidebar";
 import { getAverageStatsForLevel } from "@/utils/levels20";
+import { toast } from "sonner";
 
 /**
  * FASE 29: PROFILE 3.0 - FACEIT STYLE
@@ -71,6 +72,49 @@ export default function ProfilePage() {
     profileUser ? { userId: profileUser._id } : "skip"
   );
 
+  // Check if viewing own profile
+  const isOwnProfile = currentUser?._id === profileUser?._id;
+
+  // FASE 38: Friend status
+  const friendshipStatus = useQuery(
+    api.friendsNew.getFriendshipStatus,
+    profileUser && currentUser && !isOwnProfile ? { targetUserId: profileUser._id } : "skip"
+  );
+
+  const sendFriendRequest = useMutation(api.friendsNew.sendFriendRequest);
+  const acceptFriendRequest = useMutation(api.friendsNew.acceptFriendRequest);
+  const removeFriendship = useMutation(api.friendsNew.removeFriendship);
+
+  const handleAddFriend = async () => {
+    if (!profileUser) return;
+    try {
+      await sendFriendRequest({ targetUserId: profileUser._id });
+      toast.success("Pedido de amizade enviado!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao enviar pedido");
+    }
+  };
+
+  const handleAcceptFriend = async () => {
+    if (!friendshipStatus?.friendshipId) return;
+    try {
+      await acceptFriendRequest({ friendshipId: friendshipStatus.friendshipId });
+      toast.success("Pedido aceite!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao aceitar pedido");
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    if (!friendshipStatus?.friendshipId) return;
+    try {
+      await removeFriendship({ friendshipId: friendshipStatus.friendshipId });
+      toast.success("Amizade removida");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao remover amizade");
+    }
+  };
+
   // Loading state
   if (profileUser === undefined) {
     return (
@@ -100,7 +144,6 @@ export default function ProfilePage() {
   const progress = getProgressToNextLevel(elo);
   const levelData = getLevelFromElo(elo);
   const averageStats = getAverageStatsForLevel(progress.current.level);
-  const isOwnProfile = currentUser?._id === profileUser._id;
 
   // Prepare radar chart data - Top 5 maps performance
   const radarData = mapStats && mapStats.length > 0
@@ -182,10 +225,61 @@ export default function ProfilePage() {
                   Editar Perfil
                 </Button>
               ) : (
-                <Button className="bg-orange-600 hover:bg-orange-500">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Adicionar Amigo
-                </Button>
+                <div className="flex gap-2">
+                  {/* Friend Status Button */}
+                  {friendshipStatus?.status === "ACCEPTED" ? (
+                    <>
+                      <Button className="bg-green-600 hover:bg-green-500">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Mensagem
+                      </Button>
+                      <Button 
+                        onClick={handleRemoveFriend}
+                        variant="outline" 
+                        className="border-zinc-700 hover:bg-zinc-800"
+                      >
+                        <UserCheck className="w-4 h-4 mr-2" />
+                        Amigos
+                      </Button>
+                    </>
+                  ) : friendshipStatus?.status === "PENDING" ? (
+                    friendshipStatus.isSender ? (
+                      <Button 
+                        onClick={handleRemoveFriend}
+                        variant="outline" 
+                        className="border-zinc-700 hover:bg-zinc-800"
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
+                        Pedido Enviado
+                      </Button>
+                    ) : (
+                      <>
+                        <Button 
+                          onClick={handleAcceptFriend}
+                          className="bg-green-600 hover:bg-green-500"
+                        >
+                          <UserCheck className="w-4 h-4 mr-2" />
+                          Aceitar
+                        </Button>
+                        <Button 
+                          onClick={handleRemoveFriend}
+                          variant="outline" 
+                          className="border-zinc-700 hover:bg-zinc-800"
+                        >
+                          Recusar
+                        </Button>
+                      </>
+                    )
+                  ) : (
+                    <Button 
+                      onClick={handleAddFriend}
+                      className="bg-orange-600 hover:bg-orange-500"
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Adicionar Amigo
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

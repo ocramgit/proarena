@@ -236,6 +236,31 @@ export default defineSchema({
     resolvedAt: v.optional(v.int64()),
   }).index("by_match", ["matchId"]).index("by_status", ["status"]),
 
+  // FASE 38: Friends & Direct Messages
+  friends: defineTable({
+    user1Id: v.id("users"),
+    user2Id: v.id("users"),
+    status: v.union(v.literal("PENDING"), v.literal("ACCEPTED")),
+    actionUserId: v.id("users"), // Who sent the request
+    createdAt: v.int64(),
+  })
+    .index("by_user1", ["user1Id"])
+    .index("by_user2", ["user2Id"])
+    .index("by_users", ["user1Id", "user2Id"])
+    .index("by_status", ["status"]),
+
+  direct_messages: defineTable({
+    senderId: v.id("users"),
+    receiverId: v.id("users"),
+    content: v.string(),
+    read: v.boolean(),
+    timestamp: v.int64(),
+  })
+    .index("by_sender", ["senderId"])
+    .index("by_receiver", ["receiverId"])
+    .index("by_conversation", ["senderId", "receiverId", "timestamp"]),
+
+  // Legacy tables (keep for backwards compatibility)
   friendships: defineTable({
     user1: v.id("users"),
     user2: v.id("users"),

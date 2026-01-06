@@ -6,12 +6,25 @@ import { Dashboard } from "@/components/dashboard"
 import { MatchmakingBar } from "@/components/MatchmakingBar"
 import { MatchReadyModal } from "@/components/MatchReadyModal"
 import { NicknameSetupModal } from "@/components/NicknameSetupModal"
+import { ChatManager } from "@/components/ChatManager"
+import { ChatProvider } from "@/contexts/ChatContext"
 import { useStoreUserEffect } from "@/hooks/use-store-user-effect"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Suspense } from "react"
+
+function DashboardWithSocial() {
+  return (
+    <ChatProvider>
+      <Dashboard />
+      <MatchmakingBar />
+      <MatchReadyModal />
+      <ChatManager />
+    </ChatProvider>
+  )
+}
 
 function HomePageContent() {
   useStoreUserEffect()
@@ -62,11 +75,7 @@ function HomePageContent() {
             />
           </div>
         ) : currentUser && currentUser.steamId ? (
-          <>
-            <Dashboard />
-            <MatchmakingBar />
-            <MatchReadyModal />
-          </>
+          <DashboardWithSocial />
         ) : null}
       </SignedIn>
     </>

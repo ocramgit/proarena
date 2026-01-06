@@ -1,149 +1,224 @@
 "use client"
 
-import { useQuery } from "convex/react"
+import { useState, useEffect } from "react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Gamepad2, CheckCircle2, AlertCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Gamepad2, CheckCircle2, AlertCircle, ArrowRight, Loader2, Check, X } from "lucide-react"
+import { useDebounce } from "@/hooks/use-debounce"
+import { toast } from "sonner"
 
 /**
- * ONBOARDING OBRIGATÓRIO
- * Força users novos a vincular Steam antes de usar a plataforma
+ * FASE 40: ONBOARDING WIZARD DE 2 PASSOS
+ * Passo 1: Escolher Nickname único
+ * Passo 2: Conectar Steam
  */
 
 export default function OnboardingPage() {
   const router = useRouter()
   const currentUser = useQuery(api.users.getCurrentUser)
+  const [step, setStep] = useState(1)
+  const [nickname, setNickname] = useState("")
+  const debouncedNickname = useDebounce(nickname, 500)
+  
+  const nicknameAvailable = useQuery(
+    api.users.checkNicknameAvailable,
+    debouncedNickname.length >= 3 ? { nickname: debouncedNickname } : "skip"
+  )
+  
+  const setNicknameMutation = useMutation(api.users.setNickname)
 
-  // Redirect if already has Steam linked
+  // Redirect if fully onboarded
   useEffect(() => {
-    if (currentUser?.steamId) {
+    if (currentUser?.steamId && currentUser?.nickname) {
       router.push("/")
     }
   }, [currentUser, router])
 
+  // Auto-advance to step 2 if nickname already set
+  useEffect(() => {
+    if (currentUser?.nickname && !currentUser?.steamId) {
+      setStep(2)
+    }
+  }, [currentUser])
+
+  const handleNicknameSubmit = async () => {
+    if (!nickname || nickname.length < 3 || !nicknameAvailable) return
+    
+    try {
+      await setNicknameMutation({ nickname })
+      toast.success("Nickname definido!")
+      setStep(2)
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao definir nickname")
+    }
+  }
+
+  const handleFinish = () => {
+    if (currentUser?.steamId && currentUser?.nickname) {
+      router.push("/")
+    }
+  }
+
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-400">A carregar...</div>
+      <div className="flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
       </div>
     )
   }
 
-  // If user already has Steam, show success and redirect
-  if (currentUser.steamId) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-md text-center">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-black text-white mb-2">Steam Vinculado!</h2>
-          <p className="text-zinc-400 mb-4">A redirecionar...</p>
-        </Card>
-      </div>
-    )
-  }
+  // Validation states
+  const isNicknameValid = nickname.length >= 3 && /^[a-zA-Z0-9_]+$/.test(nickname)
+  const showAvailability = debouncedNickname.length >= 3 && isNicknameValid
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
-      <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-2xl w-full">
-
-        {/* Steps */}
-        <div className="space-y-4 mb-8">
-          <div className="flex items-start gap-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-white font-bold flex-shrink-0">
-              1
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">Vincula a tua Steam</h3>
-              <p className="text-sm text-zinc-400">
-                Usamos a tua conta Steam para verificar horas de jogo, VAC bans e calcular o teu Trust Score
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-zinc-400 font-bold flex-shrink-0">
-              2
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">Requisitos</h3>
-              <p className="text-sm text-zinc-400">
-                • Conta Steam válida<br />
-                • Conta Steam pública<br />
-                • Sem VAC bans recentes
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-700 text-zinc-400 font-bold flex-shrink-0">
-              3
-            </div>
-            <div>
-              <h3 className="font-bold text-white mb-1">Começa a Jogar</h3>
-              <p className="text-sm text-zinc-400">
-                Após vincular, terás acesso a matchmaking 1v1 e torneios
-              </p>
-            </div>
-          </div>
+    <Card className="bg-zinc-900/50 border-zinc-800 p-8 max-w-2xl w-full">
+      {/* Progress Indicator */}
+      <div className="flex items-center justify-center gap-2 mb-8">
+        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+          step >= 1 ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"
+        }`}>
+          {currentUser.nickname ? <Check className="w-4 h-4" /> : "1"}
         </div>
-
-        {/* Warning */}
-        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg mb-6">
-          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-yellow-200">
-            <strong>Importante:</strong> Só podes vincular uma conta Steam por conta ProArena. 
-            Certifica-te que é a conta correta antes de continuar.
-          </div>
+        <div className={`h-1 w-16 ${
+          step >= 2 ? "bg-orange-600" : "bg-zinc-800"
+        }`} />
+        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+          step >= 2 ? "bg-orange-600 text-white" : "bg-zinc-800 text-zinc-500"
+        }`}>
+          {currentUser.steamId ? <Check className="w-4 h-4" /> : "2"}
         </div>
-
-        {/* CTA Button */}
-        <Button
-          onClick={() => {
-            window.location.href = "/api/auth/steam"
-          }}
-          className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black text-lg py-6"
-        >
-          <Gamepad2 className="w-6 h-6 mr-3" />
-          VINCULAR CONTA STEAM
-        </Button>
-
-        <p className="text-center text-xs text-zinc-500 mt-4">
-          Ao vincular, concordas com os nossos Termos de Serviço e Política de Privacidade
-        </p>
-      </Card>
-
-      {/* Social Links - Discreto */}
-      <div className="mt-8 flex gap-4 opacity-40 hover:opacity-100 transition-opacity">
-        <a 
-          href="https://twitter.com/proarena" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
-        >
-          Twitter
-        </a>
-        <span className="text-zinc-700">•</span>
-        <a 
-          href="https://discord.gg/proarena" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
-        >
-          Discord
-        </a>
-        <span className="text-zinc-700">•</span>
-        <a 
-          href="https://instagram.com/proarena" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-zinc-500 hover:text-orange-500 transition-colors text-sm"
-        >
-          Instagram
-        </a>
       </div>
-    </div>
+
+      {/* STEP 1: Nickname */}
+      {step === 1 && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-black text-white mb-2">Escolhe o teu Nickname</h1>
+            <p className="text-zinc-400">Este será o teu @username na ProArena</p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-lg">
+                @
+              </div>
+              <Input
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value.toLowerCase())}
+                placeholder="nickname"
+                className="pl-10 h-14 text-lg bg-zinc-800 border-zinc-700 text-white"
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+
+            {/* Validation Feedback */}
+            {nickname.length > 0 && (
+              <div className="space-y-1">
+                {nickname.length < 3 && (
+                  <p className="text-xs text-zinc-500 flex items-center gap-1">
+                    <X className="w-3 h-3" /> Mínimo 3 caracteres
+                  </p>
+                )}
+                {!/^[a-zA-Z0-9_]+$/.test(nickname) && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <X className="w-3 h-3" /> Apenas letras, números e _
+                  </p>
+                )}
+                {showAvailability && nicknameAvailable === false && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <X className="w-3 h-3" /> Já está em uso
+                  </p>
+                )}
+                {showAvailability && nicknameAvailable === true && (
+                  <p className="text-xs text-green-500 flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Disponível!
+                  </p>
+                )}
+                {showAvailability && nicknameAvailable === undefined && (
+                  <p className="text-xs text-zinc-400 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> A verificar...
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={handleNicknameSubmit}
+            disabled={!isNicknameValid || nicknameAvailable !== true}
+            className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black text-lg py-6"
+          >
+            Continuar
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
+      )}
+
+      {/* STEP 2: Steam */}
+      {step === 2 && (
+        <div className="space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-black text-white mb-2">Conecta a tua Steam</h1>
+            <p className="text-zinc-400">Último passo para começares a jogar</p>
+          </div>
+
+          {currentUser.steamId ? (
+            <div className="space-y-4">
+              <div className="p-6 bg-green-500/10 border border-green-500/30 rounded-lg text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Steam Vinculado!</h3>
+                <p className="text-sm text-zinc-400 mb-1">Steam ID: {currentUser.steamId}</p>
+                <p className="text-sm text-zinc-400">{currentUser.steamName}</p>
+              </div>
+
+              <Button
+                onClick={handleFinish}
+                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black text-lg py-6"
+              >
+                <Gamepad2 className="w-6 h-6 mr-3" />
+                ENTRAR NA ARENA
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-sm text-blue-200">
+                  <strong>Porquê?</strong> Usamos a tua Steam para verificar horas de jogo, VAC bans e calcular o Trust Score.
+                </p>
+              </div>
+
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-yellow-500 inline mr-2" />
+                <span className="text-sm text-yellow-200">
+                  <strong>Importante:</strong> Só podes vincular uma conta Steam por conta.
+                </span>
+              </div>
+
+              <Button
+                onClick={() => window.location.href = "/api/auth/steam"}
+                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black text-lg py-6"
+              >
+                <Gamepad2 className="w-6 h-6 mr-3" />
+                VINCULAR CONTA STEAM
+              </Button>
+
+              <Button
+                onClick={() => setStep(1)}
+                variant="outline"
+                className="w-full border-zinc-700"
+              >
+                Voltar
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
   )
 }

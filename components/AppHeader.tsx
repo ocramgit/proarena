@@ -3,9 +3,11 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { Trophy, LogOut, User, Settings } from "lucide-react";
+import { Trophy, LogOut, User, Settings, Users } from "lucide-react";
 import { BalanceHeader } from "./BalanceHeader";
 import { NotificationBell } from "./NotificationBell";
+import { FriendsDropdown } from "@/components/FriendsDropdown";
+import { useCurrentUser } from "@/contexts/UserContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +26,8 @@ import { useClerk } from "@clerk/nextjs";
 export function AppHeader() {
   const router = useRouter();
   const { signOut } = useClerk();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const { currentUser } = useCurrentUser(); // FASE 41: Use centralized user context
+  const pendingRequests = useQuery(api.friendsNew.getPendingRequests);
 
   if (!currentUser) return null;
 
@@ -61,6 +64,20 @@ export function AppHeader() {
 
           {/* Notifications */}
           <NotificationBell />
+
+          {/* Friends Dropdown - FASE 38 */}
+          <FriendsDropdown onOpenChat={undefined}>
+            <button className="relative p-2 rounded-lg bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+              <Users className="w-5 h-5 text-zinc-400" />
+              {pendingRequests && pendingRequests.length > 0 && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">
+                    {pendingRequests.length}
+                  </span>
+                </div>
+              )}
+            </button>
+          </FriendsDropdown>
 
           {/* User Menu Dropdown */}
           <DropdownMenu>

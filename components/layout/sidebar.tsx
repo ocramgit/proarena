@@ -6,6 +6,7 @@ import { Gamepad2, Trophy, BarChart3, User, Shield, MessageSquare } from "lucide
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { useCurrentUser } from "@/contexts/UserContext"
 import { cn } from "@/lib/utils"
 
 const getNavItems = (currentUser: any) => [
@@ -44,7 +45,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const isAdmin = useQuery(api.admin.isAdmin)
   const staffRole = useQuery(api.staff.getMyStaffRole)
-  const currentUser = useQuery(api.users.getCurrentUser)
+  const { currentUser } = useCurrentUser() // FASE 41: Use centralized user context
 
   const navItems = getNavItems(currentUser)
 

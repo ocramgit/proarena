@@ -7,10 +7,18 @@ import { generateSteamAuthUrl } from "@/lib/steam-openid";
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get the base URL from the request
-    const protocol = request.headers.get("x-forwarded-proto") || "http";
-    const host = request.headers.get("host") || "localhost:3000";
-    const baseUrl = `${protocol}://${host}`;
+    // FASE 40: Dynamic URL detection for localhost + Vercel
+    let baseUrl: string;
+    
+    // Priority 1: Use environment variable if set (Vercel)
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      // Priority 2: Detect from request headers (localhost)
+      const protocol = request.headers.get("x-forwarded-proto") || "http";
+      const host = request.headers.get("host") || "localhost:3000";
+      baseUrl = `${protocol}://${host}`;
+    }
 
     // Define callback URL
     const callbackUrl = `${baseUrl}/api/auth/steam/callback`;
