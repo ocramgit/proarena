@@ -122,8 +122,8 @@ export default function LiveMatchPageVersus() {
   const isPlayerB = currentUserId === playerB?._id;
 
   // Get player stats from DatHost if available, otherwise from DB (for real-time updates)
-  const statsA = liveStats?.team1?.players?.[0] || playerA?.stats || { kills: 0, deaths: 0, assists: 0, mvps: 0 };
-  const statsB = liveStats?.team2?.players?.[0] || playerB?.stats || { kills: 0, deaths: 0, assists: 0, mvps: 0 };
+  const statsA = liveStats?.team1?.players?.[0] || { kills: playerA?.kills ?? 0, deaths: playerA?.deaths ?? 0, assists: playerA?.assists ?? 0, mvps: playerA?.mvps ?? 0 };
+  const statsB = liveStats?.team2?.players?.[0] || { kills: playerB?.kills ?? 0, deaths: playerB?.deaths ?? 0, assists: playerB?.assists ?? 0, mvps: playerB?.mvps ?? 0 };
   
   console.log("📊 Current display values:", {
     scoreA,
@@ -226,7 +226,7 @@ export default function LiveMatchPageVersus() {
                 {/* Team A Score */}
                 <div className="text-center">
                   <div className="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-bold">
-                    {playerA?.displayName || playerA?.steamName || "Jogador A"}
+                    {playerA?.nickname || playerA?.steamName || "Jogador A"}
                   </div>
                   <div className={`text-8xl font-black ${scoreA > scoreB ? "text-green-500" : "text-zinc-400"}`}>
                     {scoreA}
@@ -243,7 +243,7 @@ export default function LiveMatchPageVersus() {
                 {/* Team B Score */}
                 <div className="text-center">
                   <div className="text-sm uppercase tracking-wider text-zinc-500 mb-2 font-bold">
-                    {playerB?.displayName || playerB?.steamName || "Jogador B"}
+                    {playerB?.nickname || playerB?.steamName || "Jogador B"}
                   </div>
                   <div className={`text-8xl font-black ${scoreB > scoreA ? "text-green-500" : "text-zinc-400"}`}>
                     {scoreB}
