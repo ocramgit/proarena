@@ -81,6 +81,9 @@ export default defineSchema({
     serverIp: v.optional(v.string()),
     dathostMatchId: v.optional(v.string()),
     dathostServerId: v.optional(v.string()),
+    rconPassword: v.optional(v.string()), // FASE 60: RCON password for server control
+    whitelistedPlayers: v.optional(v.array(v.string())), // FASE 60: SteamIDs allowed to connect
+    connectedSteamIds: v.optional(v.array(v.string())),
     provisioningStarted: v.optional(v.boolean()),
     countdownStarted: v.optional(v.boolean()),
     startSequenceTriggered: v.optional(v.boolean()),
@@ -109,7 +112,8 @@ export default defineSchema({
     deaths: v.float64(),
     assists: v.float64(),
     mvps: v.float64(),
-    connected: v.boolean(),
+    connected: v.optional(v.boolean()),
+    isReady: v.optional(v.boolean()), // FASE 45: .ready system
     eloChange: v.optional(v.float64()),
     oldElo: v.optional(v.float64()),
     newElo: v.optional(v.float64()),

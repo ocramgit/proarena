@@ -15,9 +15,14 @@ export async function GET(request: NextRequest) {
       baseUrl = process.env.NEXT_PUBLIC_APP_URL;
     } else {
       // Priority 2: Detect from request headers (localhost)
-      const protocol = request.headers.get("x-forwarded-proto") || "http";
+      const protocol = request.headers.get("x-forwarded-proto") || "https"; // Default to HTTPS
       const host = request.headers.get("host") || "localhost:3000";
       baseUrl = `${protocol}://${host}`;
+    }
+    
+    // CRITICAL: Ensure HTTPS for production (Steam requires it)
+    if (!baseUrl.startsWith("http://localhost") && !baseUrl.startsWith("https://")) {
+      baseUrl = baseUrl.replace("http://", "https://");
     }
 
     // Define callback URL

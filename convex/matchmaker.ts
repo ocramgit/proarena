@@ -104,17 +104,17 @@ export const checkMatches = internalMutation({
       
       const player2 = playersWithElo.splice(closestIndex, 1)[0];
 
-      // 1v1 specific maps (aim maps)
       const mapPool = [
-        "aim_map",
-        "awp_lego_2",
-        "aim_redline",
-        "fy_pool_day",
-        "aim_ag_texture_city_advanced",
+        "de_dust2",
+        "de_mirage",
+        "de_inferno",
+        "de_ancient",
+        "de_nuke",
+        "de_anubis",
       ];
 
-      // Location pool for veto
-      const locationPool = ["Frankfurt", "Paris", "Madrid"];
+      // Location pool for veto (DatHost CS2 API location IDs)
+      const locationPool = ["dusseldorf", "strasbourg", "barcelona"];
 
       // Create match in CONFIRMING state
       const confirmationDeadline = Date.now() + 20 * 1000; // 20 seconds

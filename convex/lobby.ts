@@ -83,6 +83,11 @@ export const banMap = mutation({
 
       console.log("🚀 Final map selected:", remainingMaps[0]);
 
+      // FASE 60: Trigger server creation
+      await ctx.scheduler.runAfter(0, internal.lobbyOrchestrator.onMapSelected, {
+        matchId: args.matchId,
+      });
+
       return {
         success: true,
         bannedMap: args.mapName,

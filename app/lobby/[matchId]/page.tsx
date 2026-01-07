@@ -23,17 +23,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const MAP_IMAGES: Record<string, string> = {
-  aim_map: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
-  awp_lego_2: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80",
-  aim_redline: "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&q=80",
-  fy_pool_day: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=600&q=80",
-  aim_ag_texture_city_advanced: "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=600&q=80",
+  de_dust2: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
+  de_mirage: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80",
+  de_inferno: "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&q=80",
+  de_ancient: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=600&q=80",
+  de_nuke: "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=600&q=80",
+  de_anubis: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
 };
 
 const LOCATIONS = [
-  { id: "Frankfurt", name: "Frankfurt", flag: "🇩🇪", ping: "5ms", region: "Central EU" },
-  { id: "Paris", name: "Paris", flag: "🇫🇷", ping: "12ms", region: "West EU" },
-  { id: "Madrid", name: "Madrid", flag: "🇪🇸", ping: "18ms", region: "South EU" },
+  { id: "dusseldorf", name: "Frankfurt", flag: "🇩🇪", ping: "5ms", region: "Central EU" },
+  { id: "strasbourg", name: "Paris", flag: "🇫🇷", ping: "12ms", region: "West EU" },
+  { id: "barcelona", name: "Madrid", flag: "🇪🇸", ping: "18ms", region: "South EU" },
 ];
 
 export default function LobbyV6() {
@@ -45,67 +46,10 @@ export default function LobbyV6() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const banLocation = useMutation(api.lobbyLocation.banLocation);
   const banMap = useMutation(api.lobby.banMap);
-  const provisionServer = useAction(api.lobbyDatHost.provisionDatHostServer);
-  const autoBanLocationForBots = useMutation(api.lobbyAuto.autoBanLocationForBots);
-  const autoBanForBots = useMutation(api.lobbyAuto.autoBanForBots);
-  const callAdmin = useMutation(api.lobbyAlerts.callAdmin);
 
   const [copied, setCopied] = useState(false);
-  const [isProvisioning, setIsProvisioning] = useState(false);
-  const [showCallAdminDialog, setShowCallAdminDialog] = useState(false);
-  const [adminReason, setAdminReason] = useState("");
 
-  // Auto-provision server when map is selected
-  useEffect(() => {
-    if (
-      match?.state === "CONFIGURING" && 
-      !match.serverIp && 
-      !match.provisioningStarted && 
-      !isProvisioning
-    ) {
-      setIsProvisioning(true);
-      provisionServer({ matchId })
-        .then(() => {
-          // Servidor provisionado silenciosamente
-        })
-        .catch((error) => {
-          console.error("Erro ao provisionar servidor:", error);
-        })
-        .finally(() => setIsProvisioning(false));
-    }
-  }, [match?.state, match?.serverIp, match?.provisioningStarted, matchId, provisionServer, isProvisioning]);
-
-  // Auto-ban location for bots
-  useEffect(() => {
-    if (!match || match.state !== "VETO" || match.selectedLocation) return;
-    const locationPool = match.locationPool || ["Frankfurt", "Paris", "Madrid"];
-    const bannedLocations = match.bannedLocations || [];
-    if (bannedLocations.length >= locationPool.length - 1) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        const result = await autoBanLocationForBots({ matchId });
-        // Bot ban silencioso
-      } catch (error) {}
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [match?.bannedLocations?.length, match?.selectedLocation, match?.state, matchId, autoBanLocationForBots]);
-
-  // Auto-ban map for bots
-  useEffect(() => {
-    if (!match || match.state !== "VETO" || !match.selectedLocation || match.selectedMap) return;
-    const mapPool = match.mapPool || [];
-    const bannedMaps = match.bannedMaps || [];
-    if (bannedMaps.length >= mapPool.length - 1) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        const result = await autoBanForBots({ matchId });
-        // Bot ban silencioso
-      } catch (error) {}
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [match?.bannedMaps?.length, match?.selectedMap, match?.selectedLocation, match?.state, matchId, autoBanForBots]);
+  // FASE 60: Server creation is handled by lobbyOrchestrator when map is selected
 
   // Auto-redirect to live page when match starts
   useEffect(() => {
@@ -128,9 +72,11 @@ export default function LobbyV6() {
   const isPlayerA = currentUser._id === playerA?._id;
   const isPlayerB = currentUser._id === playerB?._id;
 
-  const locationPool = match.locationPool || ["Frankfurt", "Paris", "Madrid"];
+  const locationPool = match.locationPool || ["dusseldorf", "strasbourg", "barcelona"];
   const bannedLocations = match.bannedLocations || [];
   const selectedLocation = match.selectedLocation;
+  const selectedLocationLabel =
+    LOCATIONS.find((l) => l.id === selectedLocation)?.name || selectedLocation;
 
   const mapPool = match.mapPool || [];
   const bannedMaps = match.bannedMaps || [];
@@ -158,10 +104,16 @@ export default function LobbyV6() {
       await banLocation({ matchId, location });
     } catch (error: any) {
       console.error("Erro ao banir localização:", error);
+      toast.error(error.message || "Erro ao banir localização");
     }
   };
 
   const handleMapBan = async (mapName: string) => {
+    if (match.state !== "VETO") {
+      toast.error("Match não está em VETO");
+      return;
+    }
+
     if (!isMapYourTurn) {
       return;
     }
@@ -181,22 +133,8 @@ export default function LobbyV6() {
   };
 
   const handleCallAdmin = async () => {
-    if (!adminReason.trim()) {
-      toast.error("Descreve o motivo para chamar o admin");
-      return;
-    }
-
-    try {
-      await callAdmin({
-        matchId,
-        reason: adminReason,
-      });
-      toast.success("Admin notificado! Aguarda assistência.");
-      setShowCallAdminDialog(false);
-      setAdminReason("");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao chamar admin");
-    }
+    // FASE 60: Call admin feature removed
+    toast.error("Funcionalidade desativada");
   };
 
   // Calculate veto progress
@@ -217,19 +155,7 @@ export default function LobbyV6() {
 
         {/* CENTER - Veto Arena */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* FASE 32: Call Admin Button Header */}
-          {(match.state === "VETO" || match.state === "WARMUP" || match.state === "LIVE") && (
-            <div className="p-4 border-b border-zinc-800 flex justify-end">
-              <Button
-                onClick={() => setShowCallAdminDialog(true)}
-                variant="outline"
-                className="border-red-600 text-red-600 hover:bg-red-600/10"
-              >
-                <Phone className="w-4 h-4 mr-2" />
-                Chamar Admin
-              </Button>
-            </div>
-          )}
+          {/* FASE 60: Call Admin removed */}
           
           <div className="flex-1 overflow-hidden p-6 flex items-center justify-center">
             
@@ -288,7 +214,7 @@ export default function LobbyV6() {
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-full px-4 py-2 mb-3">
                     <MapPin className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-bold text-green-500">{selectedLocation} Selecionado</span>
+                    <span className="text-sm font-bold text-green-500">{selectedLocationLabel} Selecionado</span>
                   </div>
                   <h2 className="text-3xl font-black text-zinc-100 mb-2">Escolhe o Mapa</h2>
                   <p className="text-zinc-400">Bane os mapas indesejados. O último restante será selecionado.</p>
@@ -312,7 +238,7 @@ export default function LobbyV6() {
                       >
                         <div 
                           className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700"
-                          style={{ backgroundImage: `url(${MAP_IMAGES[map] || MAP_IMAGES.aim_map})` }}
+                          style={{ backgroundImage: `url(${MAP_IMAGES[map] || MAP_IMAGES.de_dust2})` }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/90" />
                         <div className="relative h-full flex flex-col justify-end p-6">
@@ -349,7 +275,7 @@ export default function LobbyV6() {
                       {selectedMap.replace(/_/g, " ").toUpperCase()}
                     </div>
                     <div className="text-xl text-zinc-500">
-                      {selectedLocation} • Aguarda...
+                      {selectedLocationLabel} • Aguarda...
                     </div>
                   </div>
                 </div>
@@ -370,7 +296,7 @@ export default function LobbyV6() {
                       {selectedMap.replace(/_/g, " ").toUpperCase()}
                     </div>
                     <div className="text-xl text-zinc-500">
-                      {selectedLocation}
+                      {selectedLocationLabel}
                     </div>
                   </div>
                   
@@ -420,60 +346,7 @@ export default function LobbyV6() {
         </div>
     </div>
 
-    {/* FASE 32: Call Admin Dialog */}
-    <Dialog open={showCallAdminDialog} onOpenChange={setShowCallAdminDialog}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-black flex items-center gap-2">
-            <Phone className="w-6 h-6 text-red-500" />
-            Chamar Admin
-          </DialogTitle>
-          <DialogDescription className="text-zinc-400">
-            Descreve o problema que estás a enfrentar. Um admin será notificado imediatamente.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-zinc-300 mb-2 block">
-              Motivo / Descrição do Problema
-            </label>
-            <Textarea
-              value={adminReason}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAdminReason(e.target.value)}
-              placeholder="Ex: Adversário não está a conectar ao servidor, servidor com lag, etc..."
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 min-h-[120px]"
-              maxLength={500}
-            />
-            <div className="text-xs text-zinc-500 mt-1">{adminReason.length}/500</div>
-          </div>
-
-          <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-sm text-yellow-500">
-              ⚠️ Usa esta função apenas para problemas urgentes. Abuso pode resultar em penalizações.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <Button
-              onClick={() => setShowCallAdminDialog(false)}
-              variant="outline"
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCallAdmin}
-              className="flex-1 bg-red-600 hover:bg-red-500"
-              disabled={!adminReason.trim()}
-            >
-              <Phone className="w-4 h-4 mr-2" />
-              Chamar Admin
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    {/* FASE 60: Call Admin Dialog removed */}
     </>
   );
 }
