@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FASE 60: DATHOST CORE - VANILLA CS2 SERVER MANAGEMENT
  * 
  * Pure vanilla CS2 server creation and management via DatHost API.
@@ -153,11 +153,30 @@ export const uploadKnifePlugin = internalAction({
 
     console.log("🔪 [KNIFE] Uploading Knife plugin files (3 files)...");
 
-    // Helper function to upload a file
-    const uploadFile = async (remotePath: string, content: Blob): Promise<boolean> => {
+    // Helper to upload base64 content as file
+    const uploadBase64File = async (remotePath: string, base64Content: string): Promise<boolean> => {
       const encodedPath = encodeURIComponent(remotePath).replaceAll("%2F", "/");
-      const formData = new FormData();
-      formData.append("file", content);
+      const filename = remotePath.split("/").pop() || "file";
+      
+      // Decode base64 to binary
+      const binaryString = globalThis.atob(base64Content);
+      const binaryData = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        binaryData[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Build multipart form data manually
+      const boundary = "----ConvexUpload" + Date.now();
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      const footer = `\r\n--${boundary}--\r\n`;
+      
+      const headerBytes = new TextEncoder().encode(header);
+      const footerBytes = new TextEncoder().encode(footer);
+      
+      const body = new Uint8Array(headerBytes.length + binaryData.length + footerBytes.length);
+      body.set(headerBytes, 0);
+      body.set(binaryData, headerBytes.length);
+      body.set(footerBytes, headerBytes.length + binaryData.length);
 
       const response = await fetch(
         `https://dathost.net/api/0.1/game-servers/${args.serverId}/files/${encodedPath}`,
@@ -165,8 +184,9 @@ export const uploadKnifePlugin = internalAction({
           method: "POST",
           headers: {
             Authorization: `Basic ${auth}`,
+            "Content-Type": `multipart/form-data; boundary=${boundary}`,
           },
-          body: formData,
+          body: body,
         }
       );
 
@@ -175,46 +195,31 @@ export const uploadKnifePlugin = internalAction({
         console.log("⚠️ [KNIFE] Upload failed:", remotePath, "status=", response.status, "response=", text);
         return false;
       }
+      console.log("✅ [KNIFE] Uploaded:", remotePath, "size=", binaryData.length);
       return true;
     };
 
-    // Helper to decode base64 to Blob
-    const base64ToBlob = (base64: string): Blob => {
-      const binaryString = atob(base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      return new Blob([bytes]);
-    };
-
     try {
-      // 1. Upload Knife.deps.json (decode from base64)
+      // 1. Upload Knife.deps.json
       console.log("📤 [KNIFE] Uploading Knife.deps.json...");
-      const depsBlob = base64ToBlob(KNIFE_DEPS_BASE64);
-      const depsResult = await uploadFile(`${KNIFE_FOLDER}/Knife.deps.json`, depsBlob);
+      const depsResult = await uploadBase64File(`${KNIFE_FOLDER}/Knife.deps.json`, KNIFE_DEPS_BASE64);
       if (!depsResult) {
         return { success: false, error: "Failed to upload Knife.deps.json" };
       }
-      console.log("✅ [KNIFE] Knife.deps.json uploaded");
 
-      // 2. Upload Knife.dll (binary)
+      // 2. Upload Knife.dll
       console.log("📤 [KNIFE] Uploading Knife.dll...");
-      const dllBlob = base64ToBlob(KNIFE_DLL_BASE64);
-      const dllResult = await uploadFile(`${KNIFE_FOLDER}/Knife.dll`, dllBlob);
+      const dllResult = await uploadBase64File(`${KNIFE_FOLDER}/Knife.dll`, KNIFE_DLL_BASE64);
       if (!dllResult) {
         return { success: false, error: "Failed to upload Knife.dll" };
       }
-      console.log("✅ [KNIFE] Knife.dll uploaded");
 
-      // 3. Upload Knife.pdb (binary)
+      // 3. Upload Knife.pdb
       console.log("📤 [KNIFE] Uploading Knife.pdb...");
-      const pdbBlob = base64ToBlob(KNIFE_PDB_BASE64);
-      const pdbResult = await uploadFile(`${KNIFE_FOLDER}/Knife.pdb`, pdbBlob);
+      const pdbResult = await uploadBase64File(`${KNIFE_FOLDER}/Knife.pdb`, KNIFE_PDB_BASE64);
       if (!pdbResult) {
         return { success: false, error: "Failed to upload Knife.pdb" };
       }
-      console.log("✅ [KNIFE] Knife.pdb uploaded");
 
       console.log("✅ [KNIFE] All Knife plugin files uploaded successfully!");
       return { success: true };

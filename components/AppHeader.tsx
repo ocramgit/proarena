@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { Trophy, LogOut, User, Settings, Users } from "lucide-react";
+import { Trophy, LogOut, User, Settings, Users, Coins, ShoppingBag } from "lucide-react";
 import { BalanceHeader } from "./BalanceHeader";
 import { NotificationBell } from "./NotificationBell";
 import { FriendsDropdown } from "@/components/FriendsDropdown";
@@ -37,6 +37,14 @@ export function AppHeader() {
 
   const handleSettingsClick = () => {
     router.push("/settings");
+  };
+
+  const handleShopClick = () => {
+    router.push("/shop");
+  };
+
+  const handleStoreClick = () => {
+    router.push("/store");
   };
 
   const handleSignOut = () => {
@@ -97,6 +105,14 @@ export function AppHeader() {
               <DropdownMenuItem onClick={handleProfileClick} className="cursor-pointer">
                 <User className="w-4 h-4 mr-2" />
                 Meu Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShopClick} className="cursor-pointer text-yellow-500 focus:text-yellow-400">
+                <Coins className="w-4 h-4 mr-2" />
+                Comprar Soberanas
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStoreClick} className="cursor-pointer">
+                <ShoppingBag className="w-4 h-4 mr-2" />
+                Loja
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSettingsClick} className="cursor-pointer">
                 <Settings className="w-4 h-4 mr-2" />

@@ -2,10 +2,10 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // FASE 35: Staff Members (RBAC)
+  // FASE 35: Staff Members (RBAC) - Updated FASE 51 with ORGANIZER
   staff_members: defineTable({
     email: v.string(),
-    role: v.union(v.literal("ADMIN"), v.literal("SUPPORT")),
+    role: v.union(v.literal("ADMIN"), v.literal("SUPPORT"), v.literal("ORGANIZER")),
     addedBy: v.id("users"),
     addedAt: v.int64(),
   })
@@ -292,47 +292,91 @@ export default defineSchema({
   }).index("by_leader", ["leaderId"]),
 
   /**
-   * FASE 26-29: SCHEMA EXPANSION
-   * Added tournaments, notifications, referral system, nickname routing
-   * Updated: Force regeneration for SYSTEM and REFERRAL transaction types
+   * FASE 51: TOURNAMENT SYSTEM (EXPANDED)
+   * Full tournament management with brackets, prizes, and live updates
    */
   tournaments: defineTable({
     name: v.string(),
+    description: v.optional(v.string()),
+    bannerUrl: v.optional(v.string()),
     startDate: v.int64(),
-    maxPlayers: v.float64(), // 8, 16, 32
-    prizePool: v.float64(),
+    checkInDate: v.optional(v.int64()), // When check-in opens (e.g. 30min before)
+    mode: v.union(v.literal("1v1"), v.literal("2v2"), v.literal("5v5")),
+    maxTeams: v.float64(), // 4, 8, 16, 32, 64
+    currentTeams: v.optional(v.float64()),
+    // Seeding
+    seedType: v.union(v.literal("RANDOM"), v.literal("MANUAL"), v.literal("ELO")),
+    // Prize Mode
+    prizeMode: v.union(v.literal("CUSTOM"), v.literal("SOBERANAS")),
+    // Custom prizes (text)
+    prize1st: v.optional(v.string()),
+    prize2nd: v.optional(v.string()),
+    prize3rd: v.optional(v.string()),
+    // Soberanas prize pool
+    prizePool: v.optional(v.float64()), // Total Soberanas
+    buyIn: v.optional(v.float64()), // Entry fee per team
+    distribution: v.optional(v.array(v.float64())), // [50, 30, 20] percentages
+    // Status
     status: v.union(
+      v.literal("DRAFT"),
       v.literal("REGISTRATION"),
+      v.literal("CHECKIN"),
       v.literal("ONGOING"),
-      v.literal("FINISHED")
+      v.literal("FINISHED"),
+      v.literal("CANCELLED")
     ),
+    // Metadata
+    createdBy: v.id("users"),
     createdAt: v.int64(),
+    updatedAt: v.optional(v.int64()),
     winnerId: v.optional(v.id("users")),
-  }).index("by_status", ["status"]),
+    secondPlaceId: v.optional(v.id("users")),
+    thirdPlaceId: v.optional(v.id("users")),
+  }).index("by_status", ["status"]).index("by_startDate", ["startDate"]),
 
-  tournament_entries: defineTable({
+  tournament_teams: defineTable({
     tournamentId: v.id("tournaments"),
-    userId: v.id("users"),
-    seed: v.optional(v.float64()), // Position after shuffle
+    name: v.string(),
+    captainId: v.id("users"),
+    members: v.array(v.id("users")), // All team members including captain
+    seed: v.optional(v.float64()), // Position after seeding
+    checkedIn: v.optional(v.boolean()),
+    eliminated: v.optional(v.boolean()),
+    placement: v.optional(v.float64()), // Final placement (1st, 2nd, etc)
     createdAt: v.int64(),
-  }).index("by_tournament", ["tournamentId"]).index("by_user", ["userId"]),
+  }).index("by_tournament", ["tournamentId"]).index("by_captain", ["captainId"]),
 
   tournament_matches: defineTable({
     tournamentId: v.id("tournaments"),
-    round: v.float64(), // 1 = Quarter-finals, 2 = Semi-finals, 3 = Finals
+    round: v.float64(), // 1 = Round 1, 2 = Round 2, etc. (Finals = highest)
     matchNumber: v.float64(), // Position in round (1, 2, 3, 4...)
-    matchId: v.optional(v.id("matches")), // Link to actual match
-    player1Id: v.optional(v.id("users")),
-    player2Id: v.optional(v.id("users")),
-    winnerId: v.optional(v.id("users")),
-    nextMatchId: v.optional(v.id("tournament_matches")), // Where winner advances
+    bracketPosition: v.optional(v.string()), // "upper", "lower", "grand" for double elim
+    team1Id: v.optional(v.id("tournament_teams")),
+    team2Id: v.optional(v.id("tournament_teams")),
+    winnerId: v.optional(v.id("tournament_teams")),
+    loserId: v.optional(v.id("tournament_teams")),
+    score1: v.optional(v.float64()),
+    score2: v.optional(v.float64()),
+    matchId: v.optional(v.id("matches")), // Link to actual game match
+    nextMatchId: v.optional(v.id("tournament_matches")), // Winner advances here
+    scheduledTime: v.optional(v.int64()),
+    startedAt: v.optional(v.int64()),
+    finishedAt: v.optional(v.int64()),
     status: v.union(
-      v.literal("PENDING"), // Waiting for players
-      v.literal("READY"), // Both players assigned
+      v.literal("TBD"), // Waiting for teams
+      v.literal("SCHEDULED"), // Teams assigned, waiting to start
       v.literal("LIVE"), // Match in progress
       v.literal("FINISHED") // Match completed
     ),
-  }).index("by_tournament", ["tournamentId"]).index("by_match", ["matchId"]),
+  }).index("by_tournament", ["tournamentId"]).index("by_round", ["tournamentId", "round"]).index("by_match", ["matchId"]),
+
+  // Legacy tournament_entries - keep for backwards compatibility
+  tournament_entries: defineTable({
+    tournamentId: v.id("tournaments"),
+    userId: v.id("users"),
+    seed: v.optional(v.float64()),
+    createdAt: v.int64(),
+  }).index("by_tournament", ["tournamentId"]).index("by_user", ["userId"]),
 
   notifications: defineTable({
     userId: v.id("users"),

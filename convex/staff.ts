@@ -90,12 +90,37 @@ export const getAllStaff = query({
 });
 
 /**
+ * Check if current user can organize tournaments (ORGANIZER, ADMIN, or SUPER_ADMIN)
+ */
+export const canOrganizeTournaments = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email) return false;
+
+    const email = identity.email;
+    if (email === SUPER_ADMIN_EMAIL) return true;
+
+    const staffMember = await ctx.db
+      .query("staff_members")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .first();
+
+    if (staffMember && (staffMember.role === "ADMIN" || staffMember.role === "ORGANIZER")) {
+      return true;
+    }
+
+    return false;
+  },
+});
+
+/**
  * Add staff member (Super Admin only)
  */
 export const addStaffMember = mutation({
   args: {
     email: v.string(),
-    role: v.union(v.literal("ADMIN"), v.literal("SUPPORT")),
+    role: v.union(v.literal("ADMIN"), v.literal("SUPPORT"), v.literal("ORGANIZER")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Gamepad2, Trophy, BarChart3, User, Shield, MessageSquare } from "lucide-react"
+import { Gamepad2, Trophy, BarChart3, User, Shield, MessageSquare, ShoppingBag } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -35,6 +35,11 @@ const getNavItems = (currentUser: any) => [
     icon: Trophy,
   },
   {
+    name: "Loja",
+    href: "/store",
+    icon: ShoppingBag,
+  },
+  {
     name: "Suporte",
     href: "/support",
     icon: MessageSquare,
@@ -54,9 +59,10 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Navigation - starts from top, no logo */}
         <nav className="flex-1 space-y-1 p-4 pt-20">
-          {navItems.map((item) => {
+          {navItems.map((item: any) => {
             const isActive = pathname === item.href
             const Icon = item.icon
+            const isHighlight = item.highlight
 
             return (
               <Link
@@ -66,11 +72,18 @@ export function Sidebar() {
                   "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                   isActive
                     ? "border-l-4 border-orange-600 bg-zinc-900/50 text-zinc-100"
-                    : "text-zinc-400 hover:bg-zinc-900/30 hover:text-zinc-100"
+                    : isHighlight
+                      ? "text-yellow-500 hover:bg-yellow-500/10 hover:text-yellow-400 border border-yellow-500/20 hover:border-yellow-500/40"
+                      : "text-zinc-400 hover:bg-zinc-900/30 hover:text-zinc-100"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className={cn("h-5 w-5", isHighlight && "text-yellow-500")} />
                 <span>{item.name}</span>
+                {isHighlight && (
+                  <span className="ml-auto text-[10px] font-bold bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded">
+                    NEW
+                  </span>
+                )}
               </Link>
             )
           })}
