@@ -127,26 +127,7 @@ export default function OrgSettingsPage() {
   const handleInvite = async () => {
     setError(null);
     setSuccess(null);
-
-    if (!inviteData.steamId.trim()) {
-      setError("Steam ID é obrigatório");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await invitePlayer({
-        orgId,
-        steamId: inviteData.steamId.trim(),
-        role: inviteData.role as any,
-      });
-      setSuccess("Convite enviado com sucesso!");
-      setInviteData({ steamId: "", role: "PLAYER" });
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    setError("Funcionalidade temporariamente indisponível. Use a página de membros para convidar.");
   };
 
   const handleRemoveMember = async (memberId: Id<"org_members">) => {
