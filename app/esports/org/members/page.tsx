@@ -197,7 +197,7 @@ export default function OrgMembersPage() {
               : "text-zinc-400 border-transparent hover:text-white"
           }`}
         >
-          Membros ({org.roster?.length || 0})
+          Membros
         </button>
         {canInvite && (
           <>

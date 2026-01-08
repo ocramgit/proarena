@@ -39,10 +39,11 @@ export default function AdminTicketsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"open" | "in_progress" | "closed" | "sos">("open");
 
-  const openTickets = useQuery(api.tickets.getAllTickets, { status: "OPEN" });
-  const inProgressTickets = useQuery(api.tickets.getAllTickets, { status: "IN_PROGRESS" });
-  const closedTickets = useQuery(api.tickets.getAllTickets, { status: "CLOSED" });
-  const sosAlerts = useQuery(api.tickets.getPendingAlerts);
+  // Only load tickets for active tab to reduce queries
+  const openTickets = useQuery(api.tickets.getAllTickets, activeTab === "open" ? { status: "OPEN" } : "skip");
+  const inProgressTickets = useQuery(api.tickets.getAllTickets, activeTab === "in_progress" ? { status: "IN_PROGRESS" } : "skip");
+  const closedTickets = useQuery(api.tickets.getAllTickets, activeTab === "closed" ? { status: "CLOSED" } : "skip");
+  const sosAlerts = useQuery(api.tickets.getPendingAlerts, activeTab === "sos" ? {} : "skip");
 
   const closeTicket = useMutation(api.tickets.closeTicket);
   const resolveAlert = useMutation(api.tickets.resolveAlert);

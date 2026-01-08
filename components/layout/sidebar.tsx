@@ -49,9 +49,11 @@ const getNavItems = (currentUser: any) => [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { currentUser } = useCurrentUser() // FASE 41: Use centralized user context
+  
+  // Only check admin/staff roles when needed (not on every render)
   const isAdmin = useQuery(api.admin.isAdmin)
   const staffRole = useQuery(api.staff.getMyStaffRole)
-  const { currentUser } = useCurrentUser() // FASE 41: Use centralized user context
 
   const navItems = getNavItems(currentUser)
 

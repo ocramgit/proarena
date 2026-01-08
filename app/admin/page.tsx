@@ -40,16 +40,18 @@ export default function AdminDashboard() {
   const [isAddingStaff, setIsAddingStaff] = useState(false);
 
   const isAdmin = useQuery(api.admin.isAdmin);
-  const users = useQuery(api.admin.getAllUsers, { search: searchTerm });
-  const liveMatches = useQuery(api.admin.getLiveMatches);
-  const systemLogs = useQuery(api.admin.getSystemLogs, { limit: 50 });
-  const financialStats = useQuery(api.adminFinance.getFinancialStats);
-  const allTransactions = useQuery(api.adminFinance.getAllTransactions, { limit: 50 });
-  const serverCostSummary = useQuery(api.adminFinance.getServerCostSummary);
+  
+  // Only load data if admin
+  const users = useQuery(api.admin.getAllUsers, isAdmin ? { search: searchTerm } : "skip");
+  const liveMatches = useQuery(api.admin.getLiveMatches, isAdmin ? {} : "skip");
+  const systemLogs = useQuery(api.admin.getSystemLogs, isAdmin ? { limit: 50 } : "skip");
+  const financialStats = useQuery(api.adminFinance.getFinancialStats, isAdmin ? {} : "skip");
+  const allTransactions = useQuery(api.adminFinance.getAllTransactions, isAdmin ? { limit: 50 } : "skip");
+  const serverCostSummary = useQuery(api.adminFinance.getServerCostSummary, isAdmin ? {} : "skip");
   
   // FASE 37: Team & Audit
-  const allStaff = useQuery(api.staff.getAllStaff);
-  const auditLogs = useQuery(api.auditLog.getAuditLogs, { limit: 50 });
+  const allStaff = useQuery(api.staff.getAllStaff, isAdmin ? {} : "skip");
+  const auditLogs = useQuery(api.auditLog.getAuditLogs, isAdmin ? { limit: 50 } : "skip");
 
   const toggleBan = useMutation(api.admin.toggleUserBan);
   const adjustElo = useMutation(api.admin.adjustUserElo);
