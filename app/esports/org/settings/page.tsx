@@ -29,6 +29,9 @@ export default function OrgSettingsPage() {
   const canManage = useQuery(api.organizations.canManage, 
     myOrg?._id ? { orgId: myOrg._id as Id<"organizations"> } : "skip"
   );
+  const orgMembers = useQuery(api.orgMembers.getOrgMembers,
+    myOrg?._id ? { orgId: myOrg._id as Id<"organizations"> } : "skip"
+  );
   const updateOrg = useMutation(api.organizations.updateOrganization);
   const invitePlayer = useMutation(api.organizations.invitePlayer);
   const removeMember = useMutation(api.organizations.removeMember);
@@ -334,7 +337,7 @@ export default function OrgSettingsPage() {
           <div className="p-6 rounded-xl bg-zinc-900 border border-zinc-800">
             <h3 className="font-bold text-white mb-4">Roster Atual</h3>
             <div className="space-y-3">
-              {org.roster?.map((member: any) => (
+              {orgMembers?.map((member: any) => (
                 <div key={member._id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
                   <div className="flex items-center gap-3">
                     <img
