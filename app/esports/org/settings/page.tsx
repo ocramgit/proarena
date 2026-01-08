@@ -133,7 +133,7 @@ export default function OrgSettingsPage() {
   const handleRemoveMember = async (memberId: Id<"org_members">) => {
     if (!confirm("Tens a certeza que queres remover este membro?")) return;
     try {
-      await removeMember({ orgId, memberId });
+      await removeMember({ memberId });
       setSuccess("Membro removido");
     } catch (err: any) {
       setError(err.message);
@@ -142,7 +142,7 @@ export default function OrgSettingsPage() {
 
   const handleUpdateRole = async (memberId: Id<"org_members">, newRole: string) => {
     try {
-      await updateMemberRole({ orgId, memberId, role: newRole as any });
+      await updateMemberRole({ memberId, role: newRole as any });
       setSuccess("Role atualizado");
     } catch (err: any) {
       setError(err.message);
