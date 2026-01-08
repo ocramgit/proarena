@@ -41,6 +41,7 @@ import type * as newsroom from "../newsroom.js";
 import type * as notifications from "../notifications.js";
 import type * as orgInvites from "../orgInvites.js";
 import type * as orgManagement from "../orgManagement.js";
+import type * as orgMembers from "../orgMembers.js";
 import type * as organizations from "../organizations.js";
 import type * as party from "../party.js";
 import type * as praccs from "../praccs.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   orgInvites: typeof orgInvites;
   orgManagement: typeof orgManagement;
+  orgMembers: typeof orgMembers;
   organizations: typeof organizations;
   party: typeof party;
   praccs: typeof praccs;

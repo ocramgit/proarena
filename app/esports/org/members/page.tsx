@@ -53,6 +53,9 @@ export default function OrgMembersPage() {
   const inviteLinks = useQuery(api.orgInvites.getInviteLinks,
     myOrg?._id ? { orgId: myOrg._id as Id<"organizations"> } : "skip"
   );
+  const orgMembers = useQuery(api.orgMembers.getOrgMembers,
+    myOrg?._id ? { orgId: myOrg._id as Id<"organizations"> } : "skip"
+  );
 
   const createInviteLink = useMutation(api.orgInvites.createInviteLink);
   const revokeLink = useMutation(api.orgInvites.revokeInviteLink);
@@ -228,11 +231,18 @@ export default function OrgMembersPage() {
       {/* Members Tab */}
       {activeTab === "members" && (
         <div className="space-y-2">
-          {org.roster?.map((member: any) => {
+          {orgMembers?.map((member: any) => {
             const roleInfo = ROLE_INFO[member.role] || ROLE_INFO.PLAYER;
             const RoleIcon = roleInfo.icon;
-            const canEdit = canManageRoster && member.role !== "OWNER" && 
-              (myPermissions?.hierarchyLevel || 0) > (member.hierarchyLevel || 0);
+            
+            // Role hierarchy for edit permissions
+            const roleHierarchy: Record<string, number> = {
+              OWNER: 0, MANAGER: 1, COACH: 2, CAPTAIN: 3,
+              PLAYER: 4, ANALYST: 5, BENCH: 6, STAND_IN: 7
+            };
+            const myLevel = roleHierarchy[myPermissions?.role || "PLAYER"] || 99;
+            const memberLevel = roleHierarchy[member.role] || 99;
+            const canEdit = canManageRoster && member.role !== "OWNER" && myLevel < memberLevel;
 
             return (
               <div
