@@ -33,7 +33,7 @@ export default function TournamentDetailPage() {
   const canOrganize = useQuery(api.tournaments.canOrganize);
   const startTournament = useMutation(api.tournaments.startTournament);
   const registerTeam = useMutation(api.tournaments.registerTeam);
-  const reportResult = useMutation(api.tournaments.reportMatchResult);
+  const forceResult = useMutation(api.tournamentOrchestrator.forceMatchResult);
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [teamName, setTeamName] = useState("");
@@ -210,8 +210,13 @@ export default function TournamentDetailPage() {
                 rounds={tournament.rounds} 
                 totalRounds={tournament.totalRounds}
                 canOrganize={canOrganize || false}
-                onReportResult={async (matchId, winnerId, score1, score2) => {
-                  await reportResult({ matchId, winnerId, score1, score2 });
+                onForceResult={async (matchId, winnerId, score1, score2) => {
+                  await forceResult({ 
+                    tournamentMatchId: matchId, 
+                    winnerTeamId: winnerId, 
+                    score1, 
+                    score2 
+                  });
                 }}
               />
             </div>
@@ -309,12 +314,12 @@ function TournamentBracket({
   rounds, 
   totalRounds,
   canOrganize,
-  onReportResult
+  onForceResult
 }: { 
   rounds: Record<number, any[]>;
   totalRounds: number;
   canOrganize: boolean;
-  onReportResult: (matchId: Id<"tournament_matches">, winnerId: Id<"tournament_teams">, score1?: number, score2?: number) => Promise<void>;
+  onForceResult: (matchId: Id<"tournament_matches">, winnerId: Id<"tournament_teams">, score1?: number, score2?: number) => Promise<void>;
 }) {
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
 
@@ -370,7 +375,7 @@ function TournamentBracket({
                   onHover={() => setHoveredPath(match._id)}
                   onLeave={() => setHoveredPath(null)}
                   canOrganize={canOrganize}
-                  onReportResult={onReportResult}
+                  onForceResult={onForceResult}
                 />
               ))}
             </div>
@@ -389,7 +394,7 @@ function MatchCard({
   onHover,
   onLeave,
   canOrganize,
-  onReportResult
+  onForceResult
 }: {
   match: any;
   statusStyle: string;
@@ -397,14 +402,14 @@ function MatchCard({
   onHover: () => void;
   onLeave: () => void;
   canOrganize: boolean;
-  onReportResult: (matchId: Id<"tournament_matches">, winnerId: Id<"tournament_teams">, score1?: number, score2?: number) => Promise<void>;
+  onForceResult: (matchId: Id<"tournament_matches">, winnerId: Id<"tournament_teams">, score1?: number, score2?: number) => Promise<void>;
 }) {
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [score1, setScore1] = useState("");
   const [score2, setScore2] = useState("");
 
-  const handleReport = async (winnerId: Id<"tournament_teams">) => {
-    await onReportResult(
+  const handleForceWinner = async (winnerId: Id<"tournament_teams">) => {
+    await onForceResult(
       match._id,
       winnerId,
       score1 ? Number(score1) : undefined,
@@ -512,17 +517,17 @@ function MatchCard({
               </div>
             </div>
 
-            <div className="text-sm text-zinc-400 mb-4">Seleciona o vencedor:</div>
+            <div className="text-sm text-zinc-400 mb-4">Forçar vencedor:</div>
             <div className="flex gap-2">
               <button
-                onClick={() => handleReport(match.team1Id)}
-                className="flex-1 py-2 rounded-lg bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 font-medium"
+                onClick={() => handleForceWinner(match.team1Id)}
+                className="flex-1 py-2 rounded-lg bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30 font-medium"
               >
                 {match.team1?.name}
               </button>
               <button
-                onClick={() => handleReport(match.team2Id)}
-                className="flex-1 py-2 rounded-lg bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 font-medium"
+                onClick={() => handleForceWinner(match.team2Id)}
+                className="flex-1 py-2 rounded-lg bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30 font-medium"
               >
                 {match.team2?.name}
               </button>

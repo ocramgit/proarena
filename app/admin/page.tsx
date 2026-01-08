@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const [eloMode, setEloMode] = useState<"1v1" | "5v5">("1v1");
 
   const [teamEmail, setTeamEmail] = useState("");
-  const [teamRole, setTeamRole] = useState<"ADMIN" | "SUPPORT">("SUPPORT");
+  const [teamRole, setTeamRole] = useState<"ADMIN" | "SUPPORT" | "ORGANIZER">("SUPPORT");
   const [isAddingStaff, setIsAddingStaff] = useState(false);
 
   const isAdmin = useQuery(api.admin.isAdmin);
@@ -468,11 +468,12 @@ export default function AdminDashboard() {
                   />
                   <select 
                     value={teamRole} 
-                    onChange={(e) => setTeamRole(e.target.value as "ADMIN" | "SUPPORT")}
+                    onChange={(e) => setTeamRole(e.target.value as "ADMIN" | "SUPPORT" | "ORGANIZER")}
                     className="w-48 bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-md px-3 py-2"
                   >
                     <option value="ADMIN">🔴 Admin</option>
                     <option value="SUPPORT">🔵 Support</option>
+                    <option value="ORGANIZER">🟡 Organizer</option>
                   </select>
                   <Button
                     onClick={async () => {
@@ -524,9 +525,11 @@ export default function AdminDashboard() {
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                             member.role === 'ADMIN'
                               ? 'bg-red-500/20 text-red-500 border border-red-500/30'
+                              : member.role === 'ORGANIZER'
+                              ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'
                               : 'bg-blue-500/20 text-blue-500 border border-blue-500/30'
                           }`}>
-                            {member.role === 'ADMIN' ? '🔴 ADMIN' : '🔵 SUPPORT'}
+                            {member.role === 'ADMIN' ? '🔴 ADMIN' : member.role === 'ORGANIZER' ? '🟡 ORGANIZER' : '🔵 SUPPORT'}
                           </span>
                         </TableCell>
                         <TableCell className="text-zinc-400 text-sm">

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Users, MessageCircle, UserPlus, Check, XCircle } from "lucide-react"
+import { Users, MessageCircle, UserPlus, Check, XCircle, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { useState } from "react"
+import { toast } from "sonner"
 
 /**
  * FASE 38: FRIENDS DROPDOWN
@@ -26,6 +28,31 @@ export function FriendsDropdown({ children, onOpenChat }: FriendsDropdownProps) 
   const pendingRequests = useQuery(api.friendsNew.getPendingRequests)
   const acceptRequest = useMutation(api.friendsNew.acceptFriendRequest)
   const rejectRequest = useMutation(api.friendsNew.removeFriendship)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  const handleAccept = async (friendshipId: string) => {
+    setLoadingId(friendshipId + "_accept")
+    try {
+      await acceptRequest({ friendshipId: friendshipId as any })
+      toast.success("Pedido aceite!")
+    } catch (e) {
+      toast.error("Erro ao aceitar pedido")
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
+  const handleReject = async (friendshipId: string) => {
+    setLoadingId(friendshipId + "_reject")
+    try {
+      await rejectRequest({ friendshipId: friendshipId as any })
+      toast.success("Pedido recusado")
+    } catch (e) {
+      toast.error("Erro ao recusar pedido")
+    } finally {
+      setLoadingId(null)
+    }
+  }
 
   return (
     <DropdownMenu>
@@ -64,18 +91,28 @@ export function FriendsDropdown({ children, onOpenChat }: FriendsDropdownProps) 
                     </div>
                     <div className="flex gap-1">
                       <button
-                        onClick={() => acceptRequest({ friendshipId: request.friendshipId })}
-                        className="p-1 hover:bg-green-600 rounded transition-colors"
+                        onClick={() => handleAccept(request.friendshipId)}
+                        disabled={loadingId !== null}
+                        className="p-1 hover:bg-green-600 rounded transition-colors disabled:opacity-50"
                         title="Aceitar"
                       >
-                        <Check className="w-4 h-4 text-green-500" />
+                        {loadingId === request.friendshipId + "_accept" ? (
+                          <Loader2 className="w-4 h-4 text-green-500 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4 text-green-500" />
+                        )}
                       </button>
                       <button
-                        onClick={() => rejectRequest({ friendshipId: request.friendshipId })}
-                        className="p-1 hover:bg-red-600 rounded transition-colors"
+                        onClick={() => handleReject(request.friendshipId)}
+                        disabled={loadingId !== null}
+                        className="p-1 hover:bg-red-600 rounded transition-colors disabled:opacity-50"
                         title="Recusar"
                       >
-                        <XCircle className="w-4 h-4 text-red-500" />
+                        {loadingId === request.friendshipId + "_reject" ? (
+                          <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-500" />
+                        )}
                       </button>
                     </div>
                   </div>

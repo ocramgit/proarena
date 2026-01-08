@@ -336,6 +336,11 @@ export const startTournament = mutation({
       updatedAt: BigInt(Date.now()),
     });
 
+    // FASE 52: Start tournament dispatcher to auto-create servers
+    await ctx.scheduler.runAfter(1000, internal.tournamentOrchestrator.startTournamentDispatcher, {
+      tournamentId: args.tournamentId,
+    });
+
     console.log(`🚀 Tournament started: ${tournament.name} with ${teams.length} teams`);
     return { success: true, rounds: numRounds };
   },

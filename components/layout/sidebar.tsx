@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Gamepad2, Trophy, BarChart3, User, Shield, MessageSquare, ShoppingBag } from "lucide-react"
+import { Gamepad2, Trophy, User, Shield, MessageSquare, ShoppingBag, Zap, Coins } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -16,6 +16,12 @@ const getNavItems = (currentUser: any) => [
     icon: Gamepad2,
   },
   {
+    name: "Wagers",
+    href: "/wagers",
+    icon: Coins,
+    highlight: true, // FASE 54: P2P Betting
+  },
+  {
     name: "Perfil",
     href: currentUser?.nickname 
       ? `/profile/@${currentUser.nickname}` 
@@ -23,11 +29,6 @@ const getNavItems = (currentUser: any) => [
         ? `/profile/${currentUser.clerkId}`
         : "/profile",
     icon: User,
-  },
-  {
-    name: "Ranking",
-    href: "/stats",
-    icon: BarChart3,
   },
   {
     name: "Torneios",
@@ -121,6 +122,43 @@ export function Sidebar() {
             </Link>
           )}
         </nav>
+
+        {/* ESPORTS HUB Portal - Premium Compact Pill */}
+        <div className="px-4 pb-4">
+          <div className="h-px bg-gradient-to-r from-transparent via-zinc-700 to-transparent mb-4" />
+          <Link
+            href="/esports"
+            className={cn(
+              "relative flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-black transition-all overflow-hidden group",
+              pathname?.startsWith("/esports")
+                ? "bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/40"
+                : "bg-zinc-900 text-zinc-300 border border-zinc-700 hover:border-amber-500/50 hover:text-amber-400"
+            )}
+          >
+            {/* Animated glow effect on hover */}
+            <div className={cn(
+              "absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+              !pathname?.startsWith("/esports") && "bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10"
+            )} />
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+            
+            <Zap className={cn(
+              "h-4 w-4 relative z-10",
+              pathname?.startsWith("/esports") ? "text-white" : "text-amber-500 group-hover:text-amber-400"
+            )} />
+            <span className="relative z-10 tracking-wide">ESPORTS</span>
+            
+            {/* Live indicator pulse */}
+            <span className={cn(
+              "relative z-10 flex h-2 w-2",
+              pathname?.startsWith("/esports") ? "opacity-100" : "opacity-60 group-hover:opacity-100"
+            )}>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+          </Link>
+        </div>
 
         {/* User Section */}
         <div className="border-t border-zinc-800 p-4 space-y-4">

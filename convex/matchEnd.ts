@@ -146,6 +146,11 @@ export const processMatchEnd = internalMutation({
       });
     }
 
+    // FASE 52: Check if this is a tournament match and advance bracket
+    await ctx.scheduler.runAfter(0, internal.tournamentOrchestrator.processTournamentMatchEnd, {
+      matchId: args.matchId,
+    });
+
     console.log("🎉 [END] Match processing complete!");
   },
 });

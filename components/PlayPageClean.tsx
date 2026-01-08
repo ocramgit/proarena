@@ -175,9 +175,14 @@ export function PlayPageClean() {
                   <Button
                     onClick={handleJoin1v1}
                     disabled={isJoining || !profile?.steamId}
-                    className="w-full h-20 text-2xl font-black uppercase bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 shadow-2xl shadow-orange-600/30"
+                    className="w-full h-20 text-2xl font-black uppercase bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 shadow-2xl shadow-orange-600/30 disabled:opacity-70"
                   >
-                    {!profile?.steamId ? (
+                    {isJoining ? (
+                      <>
+                        <div className="w-6 h-6 mr-3 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                        A ENTRAR...
+                      </>
+                    ) : !profile?.steamId ? (
                       <>
                         <Lock className="w-6 h-6 mr-3" />
                         Vincula Steam
