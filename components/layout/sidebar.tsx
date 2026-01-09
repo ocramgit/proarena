@@ -24,7 +24,7 @@ const getNavItems = (currentUser: any) => [
   {
     name: "Perfil",
     href: currentUser?.nickname 
-      ? `/profile/@${currentUser.nickname}` 
+      ? `/profile/${currentUser.nickname}` 
       : currentUser?.clerkId 
         ? `/profile/${currentUser.clerkId}`
         : "/profile",

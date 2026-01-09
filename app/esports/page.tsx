@@ -115,12 +115,6 @@ export default function EsportsNewsPage() {
                     <Clock className="w-3 h-3" />
                     {formatTime(featuredNews[0].publishedAt)}
                   </span>
-                  {featuredNews[0].views > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3 h-3" />
-                      {featuredNews[0].views}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -216,12 +210,6 @@ export default function EsportsNewsPage() {
                         <Clock className="w-3 h-3" />
                         {formatTime(article.publishedAt)}
                       </span>
-                      {article.views > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          {article.views}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </Link>

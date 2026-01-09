@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 /**
  * FASE 29: PROFILE REDIRECT
- * Redireciona /profile para /profile/@nickname do user atual
+ * Redirects /profile to user profile page
  */
 
 export default function ProfileRedirect() {
@@ -18,9 +18,7 @@ export default function ProfileRedirect() {
   useEffect(() => {
     if (currentUser) {
       // Use nickname if available, otherwise use full clerkId
-      const identifier = currentUser.nickname 
-        ? `@${currentUser.nickname}` 
-        : currentUser.clerkId
+      const identifier = currentUser.nickname || currentUser.clerkId
       
       router.push(`/profile/${identifier}`)
     }

@@ -8,13 +8,14 @@
 import React, { memo, useCallback, useMemo } from "react";
 
 // Generic memoized list item wrapper
-export const MemoizedListItem = memo(function MemoizedListItem<T>({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MemoizedListItem = memo(function MemoizedListItem({
   item,
   renderItem,
   index,
 }: {
-  item: T;
-  renderItem: (item: T, index: number) => React.ReactNode;
+  item: any;
+  renderItem: (item: any, index: number) => React.ReactNode;
   index: number;
 }) {
   return <>{renderItem(item, index)}</>;

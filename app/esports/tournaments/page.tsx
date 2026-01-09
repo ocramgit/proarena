@@ -19,7 +19,7 @@ import {
  */
 
 export default function TournamentsPage() {
-  const tournaments = useQuery(api.tournaments.getUpcomingTournaments);
+  const tournaments = useQuery(api.tournaments.getAllTournaments);
   const myOrg = useQuery(api.organizations.getMyOrganization);
 
   const formatDate = (timestamp: bigint | number) => {

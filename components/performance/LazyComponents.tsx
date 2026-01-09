@@ -40,10 +40,11 @@ export function withLazyLoading<P extends Record<string, any>>(
 ) {
   const LazyComponent = lazy(importFn);
 
-  return function LazyWrapper(props: P) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function LazyWrapper(props: any) {
     return (
       <Suspense fallback={<LoadingFallback message={fallbackMessage} />}>
-        <LazyComponent {...(props as P & JSX.IntrinsicAttributes)} />
+        <LazyComponent {...props} />
       </Suspense>
     );
   };
